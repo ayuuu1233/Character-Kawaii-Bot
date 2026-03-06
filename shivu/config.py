@@ -1,3 +1,11 @@
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 class Config(object):
     LOGGER = True
 
