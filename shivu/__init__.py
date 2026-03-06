@@ -30,6 +30,17 @@ UPDATE_CHAT = Config.UPDATE_CHAT
 BOT_USERNAME = Config.BOT_USERNAME 
 sudo_users = Config.sudo_users
 OWNER_ID = Config.OWNER_ID 
+GRADE4 = Config.GRADE4
+GRADE3 = Config.GRADE3
+GRADE2 = Config.GRADE2
+GRADE1 = Config.GRADE1
+SPECIALGRADE = Config.SPECIALGRADE
+Genin= Config.Genin
+Chunin= Config.Chunin
+Jonin= Config.Jonin
+Hokage= Config.Hokage
+Akatsuki = Config.Akatsuki
+Princess = Config.Princess
 
 application = Application.builder().token(TOKEN).build()
 shivuu = Client("Shivu", api_id, api_hash, bot_token=TOKEN)
