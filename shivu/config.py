@@ -2,18 +2,18 @@ class Config(object):
     LOGGER = True
 
     # Get this value from my.telegram.org/apps
-    OWNER_ID = "6765826972"
-    sudo_users = "6845325416", "6765826972"
-    GROUP_ID = -1002133191051
-    TOKEN = "6707490163:AAHZzqjm3rbEZsObRiNaT7DMtw_i5WPo_0o"
-    mongo_url = "mongodb+srv://HaremDBBot:ThisIsPasswordForHaremDB@haremdb.swzjngj.mongodb.net/?retryWrites=true&w=majority"
-    PHOTO_URL = ["https://telegra.ph/file/b925c3985f0f325e62e17.jpg", "https://telegra.ph/file/4211fb191383d895dab9d.jpg"]
-    SUPPORT_CHAT = "Collect_em_support"
-    UPDATE_CHAT = "Collect_em_support"
-    BOT_USERNAME = "Collect_Em_AllBot"
-    CHARA_CHANNEL_ID = "-1002133191051"
-    api_id = 26626068
-    api_hash = "bf423698bcbe33cfd58b11c78c42caa2"
+    OWNER_ID = "5158013355"
+    sudo_users = "5158013355"
+    GROUP_ID = -1001945969614
+    TOKEN = "8748211605:AAGe3Q0rahlCcF4v0QP6saFXR2VeiuUycIY"
+    mongo_url = "mongodb+srv://Ayuu123_db_user:kawaiiibot124@cluster0.jqv8tga.mongodb.net/?appName=Cluster0"
+    PHOTO_URL = ["https://telegra.ph/file/c74151f4c2b56a107a24b.jpg", "https://telegra.ph/file/6a81a91aa4a660a73194b.jpg"]
+    SUPPORT_CHAT = "upper_moon_chat"
+    UPDATE_CHAT = "upper_moon_chat"
+    BOT_USERNAME = "@kawaii_character_Bot"
+    CHARA_CHANNEL_ID = "-1002596866659"
+    api_id = 21621475
+    api_hash = "50c4947b6fe96901599c8b18b09f3e13"
 
     
 class Production(Config):
