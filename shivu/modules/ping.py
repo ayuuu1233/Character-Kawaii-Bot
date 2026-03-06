@@ -17,11 +17,14 @@ async def ping(update: Update, context: CallbackContext) -> None:
     
     # Sending an initial response with a cute waifu sticker
     await update.message.reply_sticker("CAACAgQAAxkBAAOxZydY5130mqDr6GKX6kucio9IHRQAAlgRAAKLAdBR7L2HepOERFIeBA")  # Replace with your preferred sticker ID
-    message = await update.message.reply_text('⏳ Seize is calculating...')
+    message = await update.message.reply_text('⏳ kawaii is calculating...')
 
     # End time for latency calculation
     end_time = time.time()
     elapsed_time = round((end_time - start_time) * 1000, 3)
+
+    # delete
+    await msg.delete() 
     
     # Edit the message with latency information and the image
     await context.bot.send_photo(
