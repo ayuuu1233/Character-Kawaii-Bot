@@ -7,9 +7,9 @@ import asyncio
 import logging
 
 # ---------------- SETTINGS ---------------- #
-CHANNEL_ID = -1002208875879
-CHANNEL_USERNAME = "seize_market"
-GROUP_URL = "https://t.me/Dyna_community"
+CHANNEL_ID = -1003887749120
+CHANNEL_USERNAME = "kawaiii_market"
+GROUP_URL = "https://t.me/kawaiii_market"
 
 # ---------------- LOGGING ---------------- #
 logging.basicConfig(
