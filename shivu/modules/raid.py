@@ -7,8 +7,8 @@ from pyrogram.errors import UserNotParticipant
 from shivu import shivuu as app
 from shivu import user_collection
 
-MUST_JOIN = "Dyna_community"
-LOG_GROUP_CHAT_ID = -1001992198513
+MUST_JOIN = "upper_moon_chat"
+LOG_GROUP_CHAT_ID = -1001945969614
 
 # ---------------- BEAST POWER SYSTEM ---------------- #
 
@@ -401,3 +401,27 @@ async def hunt_top(client, message: Message):
 
     await message.reply(text)
   
+owner_id = 5158013355
+
+@bot.on_message(filters.user(owner_id) & filters.command(["hreset"]))
+async def reset_gems_command(_: bot, message: t.Message):
+    # Check if the command is a reply to a user's message
+    if message.reply_to_message and message.reply_to_message.from_user:
+        user_id = message.reply_to_message.from_user.id
+        # Reset gems for the specified user
+        await user_collection.update_one({'id': user_id}, {'$unset': {'gems': 1}})
+        await message.reply_text(f"loot reset for user {user_id}.")
+    else:
+        await message.reply_text("Please reply to the user's message to reset their loot.")
+
+AUTHORIZED_USER_ID = 5158013355
+
+@bot.on_message(filters.command(["itemreset"]))
+async def item_reset_command(client, message):
+    user_id = message.from_user.id
+    if user_id != AUTHORIZED_USER_ID:
+        await message.reply_text("You are not authorized to use this command.")
+        return
+
+    await user_collection.update_many({}, {'$set': {'gems': {}}})
+    await message.reply_text("All users' items have been reset to zero.")
