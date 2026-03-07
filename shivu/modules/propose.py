@@ -28,16 +28,29 @@ cooldowns = {}
 last_used = {}
 fail_streak = {}
 
-# IMAGES
-ACCEPT_IMG = [
-"https://te.legra.ph/file/4fe133737bee4866a3549.png",
-"https://te.legra.ph/file/28d46e4656ee2c3e7dd8f.png"
+# Message Templates
+START_MESSAGES = [
+    "🥂 ᴛʜᴇ ᴍᴏᴍᴇɴᴛ ʜᴀs ᴀʀʀɪᴠᴇᴅ 🥂",
+    "🫧 ʟᴇᴛ's ɢᴏ! 🫧",
+    "💐 ᴛɪᴍᴇ ғᴏʀ ʏᴏᴜʀ ʟᴜᴄᴋʏ sʜᴏᴛ 💐"
+]
+REJECTION_CAPTIONS = [
+    "💔 sʜᴇ sʟᴀᴘᴘᴇᴅ ᴀɴᴅ ʀᴀɴ! 🥀",
+    "💀 sʜᴇ sᴀɪᴅ 'ɴᴏ'! 🌬️",
+    "😞 sᴏʀʀʏ, ʙᴜᴛ ɪᴛ's ᴀ ʀᴇᴊᴇᴄᴛ! 🏮"
+]
+ACCEPTANCE_IMAGES = [
+    "https://te.legra.ph/file/4fe133737bee4866a3549.png",
+    "https://te.legra.ph/file/28d46e4656ee2c3e7dd8f.png",
+    "https://te.legra.ph/file/d32c6328c6d271dd00816.png"
+]
+REJECTION_IMAGES = [
+    "https://te.legra.ph/file/d6e784e5cda62ac27541f.png",
+    "https://te.legra.ph/file/e4e1ba60b4e79359bf9e7.png",
+    "https://te.legra.ph/file/81d011398da3a6f49fa7f.png"
 ]
 
-REJECT_IMG = [
-"https://te.legra.ph/file/d6e784e5cda62ac27541f.png",
-"https://te.legra.ph/file/e4e1ba60b4e79359bf9e7.png"
-]
+
 
 # RANDOM CHARACTER
 async def get_character():
