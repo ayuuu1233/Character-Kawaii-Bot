@@ -1,18 +1,18 @@
-import logging  
+import asyncio
+
+# -------- EVENT LOOP FIX (IMPORTANT FOR PYTHON 3.14) --------
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
+import logging
 import os
-import asyncio  
-import threading
-from pyrogram import Client 
+from pyrogram import Client
 from telegram.ext import Application
 from motor.motor_asyncio import AsyncIOMotorClient
 
-# --- Asyncio Loop Patch ---
-try:
-    loop = asyncio.get_event_loop()
-except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-# ----------------------------------------------------
+# ---------------- LOGGING ---------------- #
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -21,56 +21,80 @@ logging.basicConfig(
 )
 
 logging.getLogger("apscheduler").setLevel(logging.ERROR)
-logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("pyrate_limiter").setLevel(logging.ERROR)
+
 LOGGER = logging.getLogger(__name__)
 
-from shivu.config import Development as Config
+# ---------------- CONFIG ---------------- #
 
+from shivu.config import Development as Config
 
 api_id = Config.api_id
 api_hash = Config.api_hash
 TOKEN = Config.TOKEN
 GROUP_ID = Config.GROUP_ID
-CHARA_CHANNEL_ID = Config.CHARA_CHANNEL_ID 
-mongo_url = Config.mongo_url 
-PHOTO_URL = Config.PHOTO_URL 
-SUPPORT_CHAT = Config.SUPPORT_CHAT 
+CHARA_CHANNEL_ID = Config.CHARA_CHANNEL_ID
+mongo_url = Config.mongo_url
+PHOTO_URL = Config.PHOTO_URL
+SUPPORT_CHAT = Config.SUPPORT_CHAT
 UPDATE_CHAT = Config.UPDATE_CHAT
-BOT_USERNAME = Config.BOT_USERNAME 
+BOT_USERNAME = Config.BOT_USERNAME
 sudo_users = Config.sudo_users
-OWNER_ID = Config.OWNER_ID 
+OWNER_ID = Config.OWNER_ID
 JOINLOGS = Config.JOINLOGS
 LEAVELOGS = Config.LEAVELOGS
+
 GRADE4 = Config.GRADE4
 GRADE3 = Config.GRADE3
 GRADE2 = Config.GRADE2
 GRADE1 = Config.GRADE1
 SPECIALGRADE = Config.SPECIALGRADE
-Genin= Config.Genin
-Chunin= Config.Chunin
-Jonin= Config.Jonin
-Hokage= Config.Hokage
+
+Genin = Config.Genin
+Chunin = Config.Chunin
+Jonin = Config.Jonin
+Hokage = Config.Hokage
 Akatsuki = Config.Akatsuki
 Princess = Config.Princess
 
+# ---------------- TELEGRAM CLIENTS ---------------- #
+
 application = Application.builder().token(TOKEN).build()
-shivuu = Client("Shivu", api_id, api_hash, bot_token=TOKEN)
+
+shivuu = Client(
+    "Shivu",
+    api_id=api_id,
+    api_hash=api_hash,
+    bot_token=TOKEN
+)
+
+# ---------------- DATABASE ---------------- #
+
 lol = AsyncIOMotorClient(mongo_url)
-db = lol['Character_catcher']
-set_on_data = db['set_on_data']
-refeer_collection = db['refeer_collection']
-set_off_data = db['set_off_data']
-collection = db['anime_characters_lol']
+
+db = lol["Character_catcher"]
+
+set_on_data = db["set_on_data"]
+refeer_collection = db["refeer_collection"]
+set_off_data = db["set_off_data"]
+
+collection = db["anime_characters_lol"]
+
 safari_cooldown_collection = db["safari_cooldown"]
 safari_users_collection = db["safari_users_collection"]
-sudo_users_collection= db["sudo_users_collection"]
-user_totals_collection = db['user_totals_lmaoooo']
+
+sudo_users_collection = db["sudo_users_collection"]
+
+user_totals_collection = db["user_totals_lmaoooo"]
 user_collection = db["user_collection_lmaoooo"]
-group_user_totals_collection = db['group_user_totalsssssss']
-top_global_groups_collection = db['top_global_groups']
-pm_users = db['total_pm_users']
-registered_users = db['registered_users']
-backup_collection = db['backup_collection']
+
+group_user_totals_collection = db["group_user_totalsssssss"]
+top_global_groups_collection = db["top_global_groups"]
+
+pm_users = db["total_pm_users"]
+registered_users = db["registered_users"]
+
+backup_collection = db["backup_collection"]
 settings_collection = db["settings"]
-event_collection = db['event_collection']
+event_collection = db["event_collection"]
