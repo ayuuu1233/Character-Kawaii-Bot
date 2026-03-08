@@ -13,6 +13,3 @@ tgcrypto
 python-dotenv
 cachetools
 aiocron
-
-httpx==0.24.1
-httpcore==0.17.3
