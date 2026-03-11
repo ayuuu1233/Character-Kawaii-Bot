@@ -12,7 +12,7 @@ class Development:
     sudo_users = "5158013355"
     GROUP_ID = -1001945969614
     TOKEN = "8748211605:AAGe3Q0rahlCcF4v0QP6saFXR2VeiuUycIY"
-    mongo_url = "mongodb+srv://Ayuu123_db_user:kawaiiibot124@cluster0.jqv8tga.mongodb.net/kawaii_bot?retryWrites=true&w=majority"
+    mongo_url = "mongodb://Ayuu123_db_user:kawaiiibot124@ac-rbf2miz-shard-00-00.jqv8tga.mongodb.net:27017,ac-rbf2miz-shard-00-01.jqv8tga.mongodb.net:27017,ac-rbf2miz-shard-00-02.jqv8tga.mongodb.net:27017/?ssl=true&replicaSet=atlas-5dvxad-shard-0&authSource=admin&appName=Cluster0"
     PHOTO_URL = ["https://telegra.ph/file/c74151f4c2b56a107a24b.jpg", "https://telegra.ph/file/6a81a91aa4a660a73194b.jpg"]
     SUPPORT_CHAT = "upper_moon_chat"
     UPDATE_CHAT = "upper_moon_chat"
