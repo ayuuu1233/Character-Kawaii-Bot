@@ -203,13 +203,13 @@ You entered a hidden dungeon!
       
        # ---------------- LEGENDARY DROP ---------------- #
 
-if random.randint(1,100) <= 2:
+    if random.randint(1,100) <= 2:
 
-    legendary_gems = random.randint(40,80)
+        legendary_gems = random.randint(40,80)
 
-    await user_collection.update_one(
-        {"id": user_id},
-        {
+        await user_collection.update_one(
+            {"id": user_id},
+            {
             "$inc": {
                 "gems.Diamond": legendary_gems,
                 "mythic_gems": 1,
@@ -277,7 +277,7 @@ RAID_BOSSES = [
 active_raid = None
 
 
-@bot.on_message(filters.command(["startraid"]))
+@app.on_message(filters.command(["startraid"]))
 async def start_raid(client, message):
 
     global active_raid
@@ -305,7 +305,7 @@ HP: **{boss['hp']}**
     )
 
 
-@bot.on_message(filters.command(["raidattack"]))
+@app.on_message(filters.command(["raidattack"]))
 async def raid_attack(client, message):
 
     global active_raid
@@ -403,8 +403,8 @@ async def hunt_top(client, message: Message):
   
 owner_id = 5158013355
 
-@bot.on_message(filters.user(owner_id) & filters.command(["hreset"]))
-async def reset_gems_command(_: bot, message: t.Message):
+@app.on_message(filters.user(owner_id) & filters.command(["hreset"]))
+async def reset_gems_command(client, message: Message):
     # Check if the command is a reply to a user's message
     if message.reply_to_message and message.reply_to_message.from_user:
         user_id = message.reply_to_message.from_user.id
@@ -416,7 +416,7 @@ async def reset_gems_command(_: bot, message: t.Message):
 
 AUTHORIZED_USER_ID = 5158013355
 
-@bot.on_message(filters.command(["itemreset"]))
+@app.on_message(filters.command(["itemreset"]))
 async def item_reset_command(client, message):
     user_id = message.from_user.id
     if user_id != AUTHORIZED_USER_ID:
