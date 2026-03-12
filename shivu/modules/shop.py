@@ -1,6 +1,7 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message, InputMediaPhoto
 from motor.motor_asyncio import AsyncIOMotorClient
+from shivu import shivuu as app
 import random
 import asyncio
 
