@@ -10,7 +10,7 @@ CHARACTERS_PER_PAGE = 3
 REFRESH_COST = 100
 
 # MongoDB setup
-mongo = AsyncIOMotorClient("mongodb://localhost:27017")
+mongo = AsyncIOMotorClient("mongodb://Ayuu123_db_user:kawaiiibot124@ac-rbf2miz-shard-00-00.jqv8tga.mongodb.net:27017,ac-rbf2miz-shard-00-01.jqv8tga.mongodb.net:27017,ac-rbf2miz-shard-00-02.jqv8tga.mongodb.net:27017/?ssl=true&replicaSet=atlas-5dvxad-shard-0&authSource=admin&appName=Cluster0")
 db = mongo['mydb']
 user_collection = db['users']
 collection = db['characters']
