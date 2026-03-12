@@ -154,7 +154,7 @@ async def start(update: Update, context: CallbackContext) -> None:
             [InlineKeyboardButton("✧ʜᴇʟᴘ✧", callback_data='help')],
       ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        video_url = "https://telegra.ph/file/40254b3883dfcaec52120.mp4"
+        video_url = "https://files.catbox.moe/nfu6s9.mp4"
         sticker_url = "CAACAgUAAxkBAAEBeVpm-jtB-lkO8Oixy5SZHTAy1Ymp4QACEgwAAv75EFbYc5vQ3hQ1Ph4E"
         
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker_url)
