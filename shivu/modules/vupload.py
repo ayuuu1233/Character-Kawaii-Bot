@@ -157,6 +157,9 @@ async def upload_video(update: Update, context: CallbackContext) -> None:
             if local_file and os.path.exists(local_file):
                 os.remove(local_file)
     except Exception as e:
-        await update.message.reply_text(f"❌ *Unexpected Error:*\n{str(e)}", parse_mode='Markdown')
+        await update.message.reply_text(
+            f"❌ *Unexpected Error:*\n{str(e)}",
+            parse_mode="Markdown"
+        )
 
-              application.add_handler(CommandHandler('upvideo', upload_video))
+application.add_handler(CommandHandler("upvideo", upload_video))
