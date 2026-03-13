@@ -17,10 +17,14 @@ async def is_owner(update: Update):
     return update.effective_user.id == OWNER_ID
 
 # --- 1. Restart ---
-async def restart(update: Update, context: CallbackContext):    
-    if not await is_owner(update): return    
-    await update.message.reply_text("🔄 Restarting bot...")    
-    os.execl(sys.executable, sys.executable, "-m", "shivu")
+async def restart(update: Update, context: CallbackContext):
+    if not await is_owner(update):
+        return
+
+    await update.message.reply_text("🔄 Restarting bot...")
+
+    os.system("pkill -f shivu")
+    os.system("nohup python -m shivu &")
     
 # --- 2. Status ---
 async def status(update: Update, context: CallbackContext):
@@ -62,9 +66,14 @@ async def db_stats(update: Update, context: CallbackContext):
 
 # --- 7. Git Pull ---
 async def git_pull(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
-    output = subprocess.check_output(["git", "pull"]).decode("utf-8")
-    await update.message.reply_text(f"🚀 Pull Result:\n{output}")
+    if not await is_owner(update):
+        return
+
+    try:
+        output = subprocess.check_output(["git", "pull"]).decode("utf-8")
+        await update.message.reply_text(f"✅ Update Pulled\n\n{output}\n\nNow run /restart")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Git Pull Error:\n{e}")
 
 # --- 8. User Info ---
 async def get_user_info(update: Update, context: CallbackContext):
@@ -135,6 +144,7 @@ commands = [
 
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
+
 
 
 
