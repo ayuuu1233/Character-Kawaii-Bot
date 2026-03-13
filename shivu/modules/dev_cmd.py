@@ -7,6 +7,8 @@ from telegram import Update
 from telegram.ext import CommandHandler, CallbackContext
 from shivu import application, db, user_collection
 
+INFO_VIDEO = "https://files.catbox.moe/9zncor.mp4"
+
 # --- CONFIG: Apni Telegram User ID yahan daalein ---
 OWNER_ID = 5158013355  # <--- ID YAHAN BADAL LEIN
 
@@ -66,11 +68,51 @@ async def git_pull(update: Update, context: CallbackContext):
 
 # --- 8. User Info ---
 async def get_user_info(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
+
+    if not await is_owner(update):
+        return
+
+    if not context.args:
+        await update.message.reply_text("❌ Usage: /uinfo USER_ID")
+        return
+
+    loading = await update.message.reply_text("⚡ Searching database...")
+
     uid = int(context.args[0])
     data = await user_collection.find_one({'id': uid})
-    await update.message.reply_text(f"👤 Data: {data}")
 
+    if not data:
+        await loading.edit_text("❌ User not found in database.")
+        return
+
+    name = data.get("first_name", "Unknown")
+    username = data.get("username", "None")
+    tokens = data.get("tokens", 0)
+    chars = len(data.get("characters", []))
+
+    text = f"""
+╔══『 👤 USER PROFILE 』══╗
+
+🆔 ID : `{uid}`
+👤 Name : {name}
+🔗 Username : @{username}
+
+💰 Tokens : {tokens}
+🎴 Characters : {chars}
+
+━━━━━━━━━━━━━━
+⚡ Queried by Sensei
+『 Character Kawaii Bot 』
+"""
+
+    await context.bot.send_video(
+        chat_id=update.effective_chat.id,
+        video=INFO_VIDEO,
+        caption=text,
+        parse_mode="Markdown"
+    )
+
+    await loading.delete()
 # --- 9. Clean Logs ---
 async def clean_logs(update: Update, context: CallbackContext):
     if not await is_owner(update): return
@@ -93,3 +135,4 @@ commands = [
 
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
+
