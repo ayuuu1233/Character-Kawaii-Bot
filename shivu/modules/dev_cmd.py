@@ -24,7 +24,8 @@ async def restart(update: Update, context: CallbackContext):
     await update.message.reply_text("🔄 Restarting bot...")
 
     os.system("pkill -f shivu")
-    os.system("nohup python -m shivu &")
+    os.system("cd ~/Character-Kawaii-Bot && nohup python -m shivu &")
+    os._exit(0)
     
 # --- 2. Status ---
 async def status(update: Update, context: CallbackContext):
@@ -144,6 +145,7 @@ commands = [
 
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
+
 
 
 
