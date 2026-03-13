@@ -158,7 +158,10 @@ async def restart(client, message):
 
     await message.reply("🔄 Restarting bot...")
 
-    os.execv(sys.executable, ["python"] + sys.argv)
+    os.system("pkill -f shivu")
+    os.system("cd ~/Character-Kawaii-Bot && nohup python3 -m shivu &")
+
+    os._exit(0)
 
 # -------------------------
 # BOT STATUS
