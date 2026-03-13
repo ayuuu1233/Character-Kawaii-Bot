@@ -1,6 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, InputMediaVideo
 from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes
 from telegram.constants import ParseMode
+from shivu import OWNER_ID
 from shivu import application, GRADE4, GRADE3, GRADE2, GRADE1, SPECIALGRADE
 
 # Grade database with emoji indicators
@@ -34,7 +35,7 @@ grades = {
 
 # Helper: Verify if user is Special Grade
 def is_special_grade(user_id):
-    return user_id in grades["Special grade"]["users"]
+    return user_id in grades["Special grade"]["users"] or user_id == OWNER_ID
 
 # Helper: Display grade nicely
 def get_grade_display(grade_key):
@@ -70,6 +71,7 @@ async def add_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if target_user_id in g["users"]:
             g["users"].remove(target_user_id)
 
+    if target_user_id not in grades[grade]["users"]:
     grades[grade]["users"].append(target_user_id)
     await update.message.reply_text(f"✅ User with ID {target_user_id} added to {get_grade_display(grade)}.")
 
