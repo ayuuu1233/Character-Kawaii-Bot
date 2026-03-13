@@ -18,10 +18,11 @@ async def is_owner(update: Update):
 
 # --- 1. Restart ---
 async def restart(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
-    await update.message.reply_text("🔄 Restarting bot...")
-    os.execl(sys.executable, sys.executable, "-m", "shivu")
+    if not await is_owner(update):
+        return
 
+    await update.message.reply_text("🔄 Restarting bot...")
+    os.execl(sys.executable, sys.executable, "shivu/__main__.py")
 # --- 2. Status ---
 async def status(update: Update, context: CallbackContext):
     if not await is_owner(update): return
@@ -135,5 +136,6 @@ commands = [
 
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
+
 
 
