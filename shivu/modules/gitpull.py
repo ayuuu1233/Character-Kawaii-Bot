@@ -276,3 +276,65 @@ async def clear_temp(client, message):
             removed += 1
 
     await message.reply(f"🧹 Cleared {removed} temp files")
+
+# -------------------------
+# GIT ADD
+# -------------------------
+@app.on_message(filters.command("gitadd"))
+async def gitadd(client, message):
+
+    if not is_sudo(message.from_user.id):
+        return await message.reply("❌ Not authorized")
+
+    process = subprocess.run(
+        ["git", "add", "."],
+        capture_output=True,
+        text=True
+    )
+
+    await message.reply("✅ Files added to staging")
+
+# -------------------------
+# GIT COMMIT
+# -------------------------
+@app.on_message(filters.command("gitcommit"))
+async def gitcommit(client, message):
+
+    if not is_sudo(message.from_user.id):
+        return await message.reply("❌ Not authorized")
+
+    if len(message.command) < 2:
+        return await message.reply("Usage:\n/gitcommit your message")
+
+    msg = " ".join(message.command[1:])
+
+    process = subprocess.run(
+        ["git", "commit", "-m", msg],
+        capture_output=True,
+        text=True
+    )
+
+    output = process.stdout + process.stderr
+
+    await message.reply(f"`{output[:3500]}`")
+
+# -------------------------
+# GIT PUSH
+# -------------------------
+@app.on_message(filters.command("gitpush"))
+async def gitpush(client, message):
+
+    if not is_sudo(message.from_user.id):
+        return await message.reply("❌ Not authorized")
+
+    msg = await message.reply("🚀 Pushing to GitHub...")
+
+    process = subprocess.run(
+        ["git", "push", "origin", "main"],
+        capture_output=True,
+        text=True
+    )
+
+    output = process.stdout + process.stderr
+
+    await msg.edit(f"✅ Push complete\n\n`{output[:3500]}`")
