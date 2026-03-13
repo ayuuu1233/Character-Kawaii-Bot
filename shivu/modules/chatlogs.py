@@ -122,8 +122,9 @@ async def welcome(client:Client, message:Message):
         user_id = user.id
         username = user.username or "None"
 
-        photos = await client.get_chat_photos(user_id)
-
+        photos = []
+        async for photo in client.get_chat_photos(user_id):
+        photos.append(photo)
         if photos:
 
             file = await client.download_media(photos[0].file_id)
