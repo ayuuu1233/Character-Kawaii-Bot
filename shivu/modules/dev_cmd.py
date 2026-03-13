@@ -76,7 +76,7 @@ async def get_user_info(update: Update, context: CallbackContext):
         await update.message.reply_text("❌ Usage: /uinfo USER_ID")
         return
 
-    loading = await update.message.reply_text("⚡ Searching database...")
+    loading = await update.message.reply_text("⚡ sᴄᴀɴɴɪɴɢ ᴛʜᴇ ᴍᴜʟᴛɪᴠᴇʀsᴇ ғᴏʀ ᴛʜɪs ᴜsᴇʀ...")
 
     uid = int(context.args[0])
     data = await user_collection.find_one({'id': uid})
@@ -135,4 +135,5 @@ commands = [
 
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
+
 
