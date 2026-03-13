@@ -116,8 +116,10 @@ async def sell(_, message: Message):
 @app.on_callback_query()
 async def callback_query_handler(_, query: CallbackQuery):
     user_id = query.from_user.id
-    data = query.data.split("_")
-    action_type, action = data[0], data[1]
+    data = query.data.split(":")
+
+    action_type = data[0]
+    action = data[1] if len(data) > 1 else None
 
     user = await user_collection.find_one({'id': user_id}) or {}
     tokens = user.get('tokens', 0)
