@@ -80,8 +80,8 @@ async def check_character(update: Update, context: CallbackContext) -> None:
         )
 
         else:
-        if character.get("video_url"):
-            await context.bot.send_video(
+            if character.get("video_url"):
+                await context.bot.send_video(
                 chat_id=update.effective_chat.id,
                 video=character["video_url"],
                 caption=response_message,
