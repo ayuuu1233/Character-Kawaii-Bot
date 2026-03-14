@@ -63,6 +63,9 @@ async def owner_arrival(update: Update, context: CallbackContext):
     if update.effective_user.id != OWNER_ID:
         return
 
+    if update.effective_chat.type == "private":
+        return
+
     now = time.time()
 
     if now - last_arrival < COOLDOWN:
@@ -70,10 +73,7 @@ async def owner_arrival(update: Update, context: CallbackContext):
 
     last_arrival = now
 
-    if random.randint(1,100) <= 5:
-        event = random.choice(RARE_EVENTS)
-    else:
-        event = random.choice(ARRIVAL_EVENTS)
+    event = random.choice(ARRIVAL_EVENTS)
 
     await context.bot.send_video(
         chat_id=update.effective_chat.id,
@@ -331,5 +331,6 @@ commands = [
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
     application.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, owner_arrival)
-)
+    MessageHandler(filters.TEXT & ~filters.COMMAND, owner_arrival),
+    group=-1
+    )
