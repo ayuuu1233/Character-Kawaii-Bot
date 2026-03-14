@@ -88,7 +88,7 @@ async def check_character(update: Update, context: CallbackContext) -> None:
                 parse_mode="HTML",
                 reply_markup=keyboard,
             )
-           else:
+        else:
                await context.bot.send_photo(
                    chat_id=update.effective_chat.id,
                    photo=character["img_url"],
