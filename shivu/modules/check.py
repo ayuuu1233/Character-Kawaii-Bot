@@ -88,13 +88,13 @@ async def check_character(update: Update, context: CallbackContext) -> None:
                 parse_mode="HTML",
                 reply_markup=keyboard,
             )
-        else:
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=character["img_url"],
-                caption=response_message,
-                parse_mode="HTML",
-                reply_markup=keyboard,
+           else:
+               await context.bot.send_photo(
+                   chat_id=update.effective_chat.id,
+                   photo=character["img_url"],
+                   caption=response_message,
+                   parse_mode="HTML",
+                   reply_markup=keyboard,
             )
 
     except Exception as e:
