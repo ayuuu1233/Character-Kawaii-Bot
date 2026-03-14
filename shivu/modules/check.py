@@ -78,7 +78,8 @@ async def check_character(update: Update, context: CallbackContext) -> None:
                 parse_mode='HTML',
                 reply_markup=keyboard
           
-        )
+         )
+      
        else:
            if character.get("video_url"):
             await context.bot.send_video(
