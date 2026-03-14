@@ -82,22 +82,22 @@ async def check_character(update: Update, context: CallbackContext) -> None:
         else:
             if character.get("video_url"):
                 await context.bot.send_video(
-                chat_id=update.effective_chat.id,
-                video=character["video_url"],
-                caption=response_message,
-                parse_mode="HTML",
-                reply_markup=keyboard,
-            )
-        else:
-               await context.bot.send_photo(
-                   chat_id=update.effective_chat.id,
-                   photo=character["img_url"],
-                   caption=response_message,
-                   parse_mode="HTML",
-                   reply_markup=keyboard,
-            )
-
-    except Exception as e:
+            chat_id=update.effective_chat.id,
+            video=character["video_url"],
+            caption=response_message,
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+          else:
+              await context.bot.send_photo(
+                  chat_id=update.effective_chat.id,
+            photo=character["img_url"],
+            caption=response_message,
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+    
+except Exception as e:
         print(f"Error in check_character: {e}")
         await update.message.reply_text(f'Error: {str(e)}')
 
