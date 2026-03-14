@@ -28,30 +28,30 @@ COOLDOWN = 20
 ARRIVAL_EVENTS = [
     {
         "text": "👑 My Sensei has arrived... Everyone behave.",
-        "video": "https://files.catbox.moe/9zncor.mp4"
+        "video": "https://files.catbox.moe/s4nq7h.mp4"
     },
     {
         "text": "⚡ The Master has entered the chat.",
-        "video": "VIDEO_URL_2"
+        "video": "https://files.catbox.moe/7yma10.mp4"
     },
     {
         "text": "🔥 All characters bow... Sensei is here!",
-        "video": "VIDEO_URL_3"
+        "video": "https://files.catbox.moe/ihru5d.mp4"
     },
     {
         "text": "👁️ Sensei is watching...",
-        "video": "VIDEO_URL_4"
+        "video": "https://files.catbox.moe/rtm26t.mp4"
     }
 ]
 
 RARE_EVENTS = [
     {
         "text": "🌌 Reality bends as the Supreme Owner appears.",
-        "video": "VIDEO_URL_RARE_1"
+        "video": "https://files.catbox.moe/qkeqgs.mp4"
     },
     {
         "text": "💀 The server trembles... Ayush has arrived.",
-        "video": "VIDEO_URL_RARE_2"
+        "video": "https://files.catbox.moe/g1b6dp.mp4"
     }
 ]
 
