@@ -73,7 +73,7 @@ async def check_character(update: Update, context: CallbackContext) -> None:
 
         # Edit the existing message or send a new one
         if update.callback_query:
-        await update.callback_query.edit_message_caption(
+            await update.callback_query.edit_message_caption(
             caption=response_message,
             parse_mode="HTML",
             reply_markup=keyboard,
