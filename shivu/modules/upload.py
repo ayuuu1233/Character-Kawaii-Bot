@@ -294,7 +294,7 @@ async def receive_photo(client, message):
 
             await message.reply_text("✅ Character added successfully.")
             user_states.pop(message.from_user.id, None)
-        elif user_data["state"] == "changing_image" and user_data["waifu_id"]:
+        elif user_data and user_data["state"] == "changing_image" and user_data["waifu_id"]:
                 # This condition handles changing the image of an existing waifu
                 waifu_id = user_data["waifu_id"]
                 new_image = message.photo.file_id
@@ -455,7 +455,7 @@ async def receive_text_message(client, message):
                     photo=waifu["img_url"],
                     caption=f"#𝗖𝗛𝗔𝗡𝗚𝗘𝗗𝗡𝗔𝗠𝗘\n\n» User: <a href='tg://user?id={message.from_user.id}'>{message.from_user.first_name}</a> Renamed The Character From '{old_name}' To '{new_waifu_name}',"
                 )
-                await app.send_photo
+                
             else:
                 await message.reply_text("Failed to rename the Character.")
             user_states.pop(message.from_user.id, None)
