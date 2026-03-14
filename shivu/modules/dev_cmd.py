@@ -3,100 +3,272 @@ import sys
 import psutil
 import gc
 import subprocess
+import random
+import time
+from telegram.ext import MessageHandler, filters
 from telegram import Update
+from datetime import datetime, timedelta
+from telegram import ChatPermissions
 from telegram.ext import CommandHandler, CallbackContext
 from shivu import application, db, user_collection
 
 INFO_VIDEO = "https://files.catbox.moe/9zncor.mp4"
 
-# --- CONFIG: Apni Telegram User ID yahan daalein ---
-OWNER_ID = 5158013355  # <--- ID YAHAN BADAL LEIN
+OWNER_ID = 5158013355
 
-# Security Helper
+# ---------------- OWNER CHECK ----------------
 async def is_owner(update: Update):
     return update.effective_user.id == OWNER_ID
 
-# --- 1. Restart ---
-async def restart(update: Update, context: CallbackContext):
+
+# ---------------- AURA ----------------
+last_arrival = 0
+COOLDOWN = 20
+
+ARRIVAL_EVENTS = [
+    {
+        "text": "👑 My Sensei has arrived... Everyone behave.",
+        "video": "https://files.catbox.moe/9zncor.mp4"
+    },
+    {
+        "text": "⚡ The Master has entered the chat.",
+        "video": "VIDEO_URL_2"
+    },
+    {
+        "text": "🔥 All characters bow... Sensei is here!",
+        "video": "VIDEO_URL_3"
+    },
+    {
+        "text": "👁️ Sensei is watching...",
+        "video": "VIDEO_URL_4"
+    }
+]
+
+RARE_EVENTS = [
+    {
+        "text": "🌌 Reality bends as the Supreme Owner appears.",
+        "video": "VIDEO_URL_RARE_1"
+    },
+    {
+        "text": "💀 The server trembles... Ayush has arrived.",
+        "video": "VIDEO_URL_RARE_2"
+    }
+]
+
+
+async def owner_arrival(update: Update, context: CallbackContext):
+
+    global last_arrival
+
+    if update.effective_user.id != OWNER_ID:
+        return
+
+    now = time.time()
+
+    if now - last_arrival < COOLDOWN:
+        return
+
+    last_arrival = now
+
+    if random.randint(1,100) <= 5:
+        event = random.choice(RARE_EVENTS)
+    else:
+        event = random.choice(ARRIVAL_EVENTS)
+
+    await context.bot.send_video(
+        chat_id=update.effective_chat.id,
+        video=event["video"],
+        caption=event["text"]
+    )
+
+
+# ---------------- STATUS ----------------
+async def status(update: Update, context: CallbackContext):
     if not await is_owner(update):
         return
 
-    await update.message.reply_text("🔄 Restarting bot...")
-
-    os.system("pkill -f shivu")
-    os.system("cd ~/Character-Kawaii-Bot && nohup python -m shivu &")
-    os._exit(0)
-    
-# --- 2. Status ---
-async def status(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
     cpu = psutil.cpu_percent()
     ram = psutil.virtual_memory().percent
-    await update.message.reply_text(f"📊 CPU: {cpu}% | RAM: {ram}%")
 
-# --- 3. Evaluate Code ---
+    await update.message.reply_text(
+        f"📊 BOT STATUS\n\n"
+        f"🧠 CPU : {cpu}%\n"
+        f"💾 RAM : {ram}%"
+    )
+
+
+# ---------------- EVAL ----------------
 async def eval_command(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
-    try:
-        cmd = " ".join(context.args)
-        result = eval(cmd)
-        await update.message.reply_text(f"✅ Result: {result}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error: {e}")
-
-# --- 4. Database Nuke (Dangerous!) ---
-async def nuke_db(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
-    for collection in await db.list_collection_names():
-        await db[collection].drop()
-    await update.message.reply_text("💥 Database Nuked!")
-
-# --- 5. Maintenance Mode ---
-MAINTENANCE = False
-async def maintenance(update: Update, context: CallbackContext):
-    global MAINTENANCE
-    if not await is_owner(update): return
-    MAINTENANCE = not MAINTENANCE
-    await update.message.reply_text(f"⚠️ Maintenance: {'ON' if MAINTENANCE else 'OFF'}")
-
-# --- 6. DB Stats ---
-async def db_stats(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
-    stats = await db.command("dbstats")
-    await update.message.reply_text(f"💾 Data Size: {stats['dataSize'] // 1024} KB")
-
-# --- 7. Git Pull ---
-async def git_pull(update: Update, context: CallbackContext):
     if not await is_owner(update):
         return
 
     try:
-        output = subprocess.check_output(["git", "pull"]).decode("utf-8")
-        await update.message.reply_text(f"✅ Update Pulled\n\n{output}\n\nNow run /restart")
+        code = " ".join(context.args)
+        result = eval(code)
+        await update.message.reply_text(f"✅ Result:\n{result}")
     except Exception as e:
-        await update.message.reply_text(f"❌ Git Pull Error:\n{e}")
+        await update.message.reply_text(f"❌ Error:\n{e}")
 
-# --- 8. User Info ---
+
+# ---------------- NUKE DATABASE ----------------
+async def nuke_db(update: Update, context: CallbackContext):
+    if not await is_owner(update):
+        return
+
+    if not context.args or context.args[0] != "confirm":
+        await update.message.reply_text(
+            "⚠️ This will delete ALL database.\n\n"
+            "Use:\n/nuke confirm"
+        )
+        return
+
+    collections = await db.list_collection_names()
+
+    for name in collections:
+        await db[name].drop()
+
+    await update.message.reply_text("💥 Database Nuked Successfully!")
+
+
+# ---------------- MAINTENANCE ----------------
+MAINTENANCE = False
+
+async def maintenance(update: Update, context: CallbackContext):
+    global MAINTENANCE
+
+    if not await is_owner(update):
+        return
+
+    MAINTENANCE = not MAINTENANCE
+
+    await update.message.reply_text(
+        f"⚠️ Maintenance Mode : {'ON' if MAINTENANCE else 'OFF'}"
+    )
+
+
+# ---------------- DB STATS ----------------
+async def db_stats(update: Update, context: CallbackContext):
+    if not await is_owner(update):
+        return
+
+    stats = await db.command("dbstats")
+
+    size = stats["dataSize"] // 1024
+
+    await update.message.reply_text(
+        f"💾 Database Stats\n\n"
+        f"Data Size : {size} KB"
+    )
+
+
+# ---------------- JUDGEMENT ----------------
+JUDGEMENT_MESSAGES = [
+    "⚖️ Sensei has judged {user}\nPunishment: 100 Tokens Burned!",
+    "🔥 Divine punishment delivered to {user}\nResult: 200 Tokens Destroyed!",
+    "💀 Curse placed on {user}\nResult: 50 Tokens Removed!",
+    "⚡ Sensei's anger strikes {user}\nResult: Temporary Silence!",
+]
+
+RARE_JUDGEMENT = [
+    "🌌 Ultimate Judgement on {user}\nResult: Banished from the realm!",
+]
+
+async def judgement(update: Update, context: CallbackContext):
+
+    if not await is_owner(update):
+        return
+
+    if not update.message.reply_to_message:
+        await update.message.reply_text("Reply to a user with /judgement")
+        return
+
+    target = update.message.reply_to_message.from_user
+    uid = target.id
+    chat_id = update.effective_chat.id
+
+    # rare punishment chance
+    if random.randint(1,100) <= 5:
+
+        text = random.choice(RARE_JUDGEMENT).format(user=target.mention_html())
+
+        await context.bot.ban_chat_member(chat_id, uid)
+
+        await context.bot.send_message(
+            chat_id,
+            text,
+            parse_mode="HTML"
+        )
+        return
+
+    punishment = random.randint(1,4)
+
+    if punishment == 1:
+
+        await user_collection.update_one(
+            {"id": uid},
+            {"$inc": {"tokens": -100}}
+        )
+
+    elif punishment == 2:
+
+        await user_collection.update_one(
+            {"id": uid},
+            {"$inc": {"tokens": -200}}
+        )
+
+    elif punishment == 3:
+
+        await user_collection.update_one(
+            {"id": uid},
+            {"$inc": {"tokens": -50}}
+        )
+
+    elif punishment == 4:
+
+        until = datetime.utcnow() + timedelta(minutes=5)
+
+        await context.bot.restrict_chat_member(
+            chat_id,
+            uid,
+            permissions=ChatPermissions(can_send_messages=False),
+            until_date=until
+        )
+
+    text = random.choice(JUDGEMENT_MESSAGES).format(user=target.mention_html())
+
+    await context.bot.send_message(
+        chat_id,
+        text,
+        parse_mode="HTML"
+    )
+
+# ---------------- USER INFO ----------------
 async def get_user_info(update: Update, context: CallbackContext):
 
     if not await is_owner(update):
         return
 
     if not context.args:
-        await update.message.reply_text("❌ Usage: /uinfo USER_ID")
+        await update.message.reply_text("Usage:\n/uinfo USER_ID")
         return
 
-    loading = await update.message.reply_text("⚡ sᴄᴀɴɴɪɴɢ ᴛʜᴇ ᴍᴜʟᴛɪᴠᴇʀsᴇ ғᴏʀ ᴛʜɪs ᴜsᴇʀ...")
+    loading = await update.message.reply_text("🔍 Searching user...")
 
     uid = int(context.args[0])
     data = await user_collection.find_one({'id': uid})
 
     if not data:
-        await loading.edit_text("❌ User not found in database.")
+        await loading.edit_text("❌ User not found.")
         return
 
     name = data.get("first_name", "Unknown")
-    username = data.get("username", "None")
+    username = data.get("username")
+
+    if username:
+        username = f"@{username}"
+    else:
+        username = "None"
+
     tokens = data.get("tokens", 0)
     chars = len(data.get("characters", []))
 
@@ -105,14 +277,13 @@ async def get_user_info(update: Update, context: CallbackContext):
 
 🆔 ID : `{uid}`
 👤 Name : {name}
-🔗 Username : @{username}
+🔗 Username : {username}
 
 💰 Tokens : {tokens}
 🎴 Characters : {chars}
 
 ━━━━━━━━━━━━━━
 ⚡ Queried by Sensei
-『 Character Kawaii Bot 』
 """
 
     await context.bot.send_video(
@@ -123,31 +294,42 @@ async def get_user_info(update: Update, context: CallbackContext):
     )
 
     await loading.delete()
-# --- 9. Clean Logs ---
+
+
+# ---------------- CLEAN LOGS ----------------
 async def clean_logs(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
-    os.system("rm *.log")
-    await update.message.reply_text("🧹 Logs cleared!")
+    if not await is_owner(update):
+        return
 
-# --- 10. Memory Dump ---
+    os.system("rm -f *.log")
+    await update.message.reply_text("🧹 Logs cleaned.")
+
+
+# ---------------- MEMORY CLEAN ----------------
 async def mem_dump(update: Update, context: CallbackContext):
-    if not await is_owner(update): return
-    gc.collect()
-    await update.message.reply_text("🧠 Memory cleaned!")
+    if not await is_owner(update):
+        return
 
-# --- Register Handlers ---
+    gc.collect()
+    await update.message.reply_text("🧠 Memory cleaned.")
+
+
+# ---------------- REGISTER COMMANDS ----------------
 commands = [
-    ("restart", restart), ("status", status), ("eval", eval_command),
-    ("nuke", nuke_db), ("maintenance", maintenance), ("dbstats", db_stats),
-    ("gitpull", git_pull), ("uinfo", get_user_info), ("clean", clean_logs),
-    ("memdump", mem_dump)
+    
+    ("status", status),
+    ("eval", eval_command),
+    ("nuke", nuke_db),
+    ("maintenance", maintenance),
+    ("dbstats", db_stats),
+    ("judgement", judgement),
+    ("uinfo", get_user_info),
+    ("clean", clean_logs),
+    ("memdump", mem_dump),
 ]
 
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
-
-
-
-
-
-
+    application.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, owner_arrival)
+)
