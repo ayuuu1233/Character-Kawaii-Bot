@@ -72,7 +72,7 @@ async def add_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
             g["users"].remove(target_user_id)
 
     if target_user_id not in grades[grade]["users"]:
-    grades[grade]["users"].append(target_user_id)
+        grades[grade]["users"].append(target_user_id)
     await update.message.reply_text(f"✅ User with ID {target_user_id} added to {get_grade_display(grade)}.")
 
 # Remove user from all grades
