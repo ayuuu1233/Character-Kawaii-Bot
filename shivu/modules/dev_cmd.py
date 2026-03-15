@@ -18,7 +18,10 @@ OWNER_ID = 5158013355
 
 # ---------------- OWNER CHECK ----------------
 async def is_owner(update: Update):
-    return update.effective_user.id == OWNER_ID
+    # Check if update and user exist before accessing ID
+    if update.effective_user:
+        return update.effective_user.id == OWNER_ID
+    return False
 
 
 # ---------------- AURA ----------------
@@ -57,8 +60,11 @@ RARE_EVENTS = [
 
 
 async def owner_arrival(update: Update, context: CallbackContext):
-
     global last_arrival
+
+    # SAFETY CHECK: Agar user info missing hai (None), toh yahin ruk jao
+    if not update.effective_user:
+        return
 
     if update.effective_user.id != OWNER_ID:
         return
@@ -67,12 +73,10 @@ async def owner_arrival(update: Update, context: CallbackContext):
         return
 
     now = time.time()
-
     if now - last_arrival < COOLDOWN:
         return
 
     last_arrival = now
-
     event = random.choice(ARRIVAL_EVENTS)
 
     await context.bot.send_video(
@@ -316,7 +320,6 @@ async def mem_dump(update: Update, context: CallbackContext):
 
 # ---------------- REGISTER COMMANDS ----------------
 commands = [
-    
     ("status", status),
     ("eval", eval_command),
     ("nuke", nuke_db),
@@ -330,7 +333,9 @@ commands = [
 
 for cmd, func in commands:
     application.add_handler(CommandHandler(cmd, func, block=False))
-    application.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, owner_arrival),
+
+# Group -1 ensures this runs before other message handlers
+application.add_handler(
+    MessageHandler(filters.ALL & ~filters.COMMAND, owner_arrival),
     group=-1
-    )
+)
