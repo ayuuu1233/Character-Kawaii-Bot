@@ -33,7 +33,7 @@ async def claim_reward(update: Update, context: CallbackContext):
 
     # Ensure the command is used in the allowed group
     if chat_id != allowed_group_id:
-        return await message.reply_text("⚠️ This command only works in the official group! Please join @Dyna_community.")
+        return await message.reply_text("⚠️ This command only works in the official group! Please join @upper_moon_chat.")
 
     # Send a processing message
     sent_msg = await message.reply_text("🔍 Checking your reward status...")
