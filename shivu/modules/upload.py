@@ -221,7 +221,24 @@ async def choose_anime_callback(client, callback_query):
             show_alert=True
             )
         
-
+# Handle text input for waifu name and move to rarity selection
+@app.on_message(filters.private & filters.text)
+async def receive_text_message(client, message):
+    user_data = user_states.get(message.from_user.id)
+    if user_data and user_data["state"] == "awaiting_waifu_name":
+        user_states[message.from_user.id]["name"] = message.text.strip()
+        user_states[message.from_user.id]["state"] = "awaiting_waifu_rarity"
+        
+        # Prompt for rarity selection
+        await message.reply_text(
+            "Now, choose the waifu's rarity:",
+            reply_markup=InlineKeyboardMarkup(
+                [
+                    [InlineKeyboardButton(rarity, callback_data=f"select_rarity_{rarity}")] 
+                    for rarity in rarity_emojis.keys()
+                ]
+            )
+        )
 
 # Handle rarity selection and move to event selection
 @app.on_callback_query(filters.regex('^select_rarity_'))
@@ -294,7 +311,7 @@ async def receive_photo(client, message):
 
             await message.reply_text("✅ Character added successfully.")
             user_states.pop(message.from_user.id, None)
-        elif user_data and user_data["state"] == "changing_image" and user_data["waifu_id"]:
+        elif user_data["state"] == "changing_image" and user_data["waifu_id"]:
                 # This condition handles changing the image of an existing waifu
                 waifu_id = user_data["waifu_id"]
                 new_image = message.photo.file_id
@@ -448,19 +465,29 @@ async def receive_text_message(client, message):
                     photo=waifu["img_url"],
                     caption=f"#𝗖𝗛𝗔𝗡𝗚𝗘𝗗𝗡𝗔𝗠𝗘\n\n» User: <a href='tg://user?id={message.from_user.id}'>{message.from_user.first_name}</a> Renamed The Character From '{old_name}' To '{new_waifu_name}',"
                 )
-                
+                await app.send_photo
                     
                 await app.send_photo(
                     chat_id=SUPPORT_CHAT,
                     photo=waifu["img_url"],
                     caption=f"#𝗖𝗛𝗔𝗡𝗚𝗘𝗗𝗡𝗔𝗠𝗘\n\n» User: <a href='tg://user?id={message.from_user.id}'>{message.from_user.first_name}</a> Renamed The Character From '{old_name}' To '{new_waifu_name}',"
                 )
-                
+                await app.send_photo
             else:
                 await message.reply_text("Failed to rename the Character.")
             user_states.pop(message.from_user.id, None)
 
-
+@app.on_callback_query(filters.regex('^add_waifu_'))
+async def choose_anime_callback(client, callback_query):
+    selected_anime = callback_query.data.split('_', 2)[-1]
+    user_states[callback_query.from_user.id] = {"state": "awaiting_waifu_name", "anime": selected_anime, "name": None, "rarity": None}
+    await app.send_message(
+        chat_id=callback_query.from_user.id,
+        text=f"You've selected {selected_anime}. Now, please enter the new Character's name:",
+        reply_markup=InlineKeyboardMarkup(
+            [[InlineKeyboardButton("Cancel", callback_data="cancel_add_waifu")]]
+        )
+    )
 
 @app.on_callback_query(filters.regex('^add_anime$'))
 async def add_anime_callback(client, callback_query):
