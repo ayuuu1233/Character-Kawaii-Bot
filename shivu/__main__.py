@@ -43,16 +43,22 @@ warned_users = {}
 user_message_counts = {}
 
 async def message_counter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # SAFETY CHECK 1: Agar chat ya user missing hai toh return kar jao
+    if not update.effective_chat or not update.effective_user:
+        return
+
     chat_id = str(update.effective_chat.id)
     user_id = update.effective_user.id
     username = update.effective_user.username or "User"
     
-    # Initialize lock for the chat if it doesn't exist
+    # Baaki logic (Locks, Chat Settings, etc.) yahan se shuru hoga...
     if chat_id not in locks:
         locks[chat_id] = asyncio.Lock()
     lock = locks[chat_id]
 
     async with lock:
+        # ... (baaki sara code same rahega)
+
         # Fetch or set default message frequency for the chat
         chat_settings = await user_totals_collection.find_one({'chat_id': chat_id})
         message_frequency = chat_settings.get('message_frequency', 100) if chat_settings else 100
@@ -212,7 +218,7 @@ async def send_image(update: Update, context: CallbackContext) -> None:
     message = await context.bot.send_photo(
         chat_id=chat_id,
         photo=selected_character['img_url'],
-        caption=f"""<b>{character['rarity'][0]} ᴋᴀᴡᴀɪ! ᴀ {character['rarity'][2:]} ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀs ᴀᴘᴘᴇᴀʀᴇᴅ!</b>\n
+        caption=f"""<b>{selected_character['rarity'][0]} ᴋᴀᴡᴀɪ! ᴀ {selected_character['rarity'][2:]} ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀs ᴀᴘᴘᴇᴀʀᴇᴅ!</b>\n
 <b>ᴀᴅᴅ ʜᴇʀ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ ʙʏ sᴇɴᴅɪɴɢ</b>\n<b>/seize ɴᴀᴍᴇ</b>""",
         parse_mode='HTML'
     )
@@ -296,8 +302,14 @@ async def placeholder_callback(update: Update, context: CallbackContext):
 
 
 async def guess(update: Update, context: CallbackContext) -> None:
+    # SAFETY CHECK 2: User ya Message missing hone par crash na ho
+    if not update.effective_user or not update.message:
+        return
+
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
+    
+
 
     if chat_id not in last_characters:
         return
