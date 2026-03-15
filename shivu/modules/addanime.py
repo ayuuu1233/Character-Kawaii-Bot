@@ -51,8 +51,10 @@ async def get_next_sequence_number(sequence_name: str) -> int:
 
 
 async def add_anime(update: Update, context: CallbackContext) -> None:
-    if str(update.effective_user.id) not in sudo_users:
-        await update.message.reply_text("You do not have permission to use this command. Please contact the bot owner.")
+    # SAFETY CHECK 2: User exist karta hai ya nahi
+    if not update.effective_user or str(update.effective_user.id) not in sudo_users:
+        if update.message:
+            await update.message.reply_text("You do not have permission to use this command.")
         return
 
     try:
@@ -124,6 +126,10 @@ async def reload_anime_data(update: Update, context: CallbackContext) -> None:
 
 
 async def get_anime(update: Update, context: CallbackContext) -> None:
+    # SAFETY CHECK 1: Agar update mein message hi nahi hai (e.g. Edited message ya Join message)
+    if not update.message or not update.message.text:
+        return
+
     anime_name = update.message.text.strip().lower()
 
     for anime in anime_cache:
@@ -132,18 +138,18 @@ async def get_anime(update: Update, context: CallbackContext) -> None:
                 [[InlineKeyboardButton(text="More Info", url=anime.get("post_url", ""))]]
             )
 
-            await context.bot.send_photo(
-                chat_id=update.effective_chat.id,
-                photo=anime.get("img_url", ""),
-                caption=f"<b>Anime Name:</b> {html.escape(anime.get('name',''), quote=True)}\n<b>More Info:</b> Below 👇",
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
-            return
-
-    await update.message.reply_text(
-        "Anime not found in the database. Please check the name and try again."
-    )
+            try:
+                await context.bot.send_photo(
+                    chat_id=update.effective_chat.id,
+                    photo=anime.get("img_url", ""),
+                    caption=f"<b>Anime Name:</b> {html.escape(anime.get('name',''), quote=True)}\n<b>More Info:</b> Below 👇",
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+                return
+            except Exception as e:
+                print(f"Error sending photo: {e}")
+                return
 
 
 ADD_ANIME_HANDLER = CommandHandler("addanime", add_anime, block=False)
