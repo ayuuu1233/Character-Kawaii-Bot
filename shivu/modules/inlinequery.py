@@ -67,19 +67,38 @@ async def inlinequery(update: Update, context: CallbackContext) -> None:
     results = []
     for character in characters:
         global_count = await user_collection.count_documents({'characters.id': character['id']})
-        anime_characters = await collection.count_documents({'anime': character['anime']})
+    anime_characters = await collection.count_documents({'anime': character['anime']})
 
-        if query.startswith('collection.'):
-            user_character_count = sum(c['id'] == character['id'] for c in user['characters'])
-            user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
-            caption = f"<b> Look At <a href='tg://user?id={user['id']}'>{(escape(user.get('first_name', user['id'])))}</a>'s Character</b>\n\n🌸: <b>{character['name']} (x{user_character_count})</b>\n🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n<b>{character['rarity']}</b>\n\n<b>🆔️:</b> {character['id']}"
-        else:
-            caption = f"<b>Look At This Character !!</b>\n\n🌸:<b> {character['name']}</b>\n🏖️: <b>{character['anime']}</b>\n<b>{character['rarity']}</b>\n🆔️: <b>{character['id']}</b>\n\n<b>Globally Guessed {global_count} Times...</b>"
+    if query.startswith('collection.'):
+        user_character_count = sum(c['id'] == character['id'] for c in user['characters'])
+        user_anime_characters = sum(c['anime'] == character['anime'] for c in user['characters'])
+        caption = f"<b> Look At <a href='tg://user?id={user['id']}'>{(escape(user.get('first_name', user['id'])))}</a>'s Character</b>\n\n🌸: <b>{character['name']} (x{user_character_count})</b>\n🏖️: <b>{character['anime']} ({user_anime_characters}/{anime_characters})</b>\n<b>{character['rarity']}</b>\n\n<b>🆔️:</b> {character['id']}"
+    else:
+        caption = f"<b>Look At This Character !!</b>\n\n🌸:<b> {character['name']}</b>\n🏖️: <b>{character['anime']}</b>\n<b>{character['rarity']}</b>\n🆔️: <b>{character['id']}</b>\n\n<b>Globally Guessed {global_count} Times...</b>"
+
+    # --- VIDEO AUR PHOTO SELECTION START ---
+    url = character['img_url']
+    if url.lower().endswith(('.mp4', '.mov', '.mkv', '.webm')):
+        # Agar video hai toh InlineQueryResultVideo use karein
+        from telegram import InlineQueryResultVideo
+        results.append(
+            InlineQueryResultVideo(
+                id=f"{character['id']}_{time.time()}",
+                video_url=url,
+                mime_type="video/mp4",
+                thumbnail_url=url, # Video ka thumbnail bhi wahi URL rahega
+                title=character['name'],
+                caption=caption,
+                parse_mode='HTML'
+            )
+        )
+    else:
+        # Agar image hai toh purana wala logic
         results.append(
             InlineQueryResultPhoto(
-                thumbnail_url=character['img_url'],
+                thumbnail_url=url,
                 id=f"{character['id']}_{time.time()}",
-                photo_url=character['img_url'],
+                photo_url=url,
                 caption=caption,
                 parse_mode='HTML'
             )
