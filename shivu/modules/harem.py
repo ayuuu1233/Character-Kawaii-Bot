@@ -80,11 +80,17 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
         fav_character_id = user['favorites'][0]
         fav_character = next((c for c in user['characters'] if c['id'] == fav_character_id), None)
         if fav_character and 'img_url' in fav_character:
+            media_url = fav_character['img_url']
             if update.message:
-                await update.message.reply_photo(photo=fav_character['img_url'], caption=harem_message, reply_markup=reply_markup)
+                if media_url.endswith(('.mp4', '.mov', '.mkv')):
+                    await update.message.reply_video(video=media_url, caption=harem_message, reply_markup=reply_markup)
+                else:
+                    await update.message.reply_photo(photo=media_url, caption=harem_message, reply_markup=reply_markup)
             else:
+                # Callback query ke liye edit_message_media ka use hota hai, par simple solution yeh hai:
                 if update.callback_query.message.caption != harem_message:
                     await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup, parse_mode='HTML')
+
         else:
             if update.message:
                 await update.message.reply_text(harem_message, reply_markup=reply_markup)
@@ -95,11 +101,16 @@ async def harem(update: Update, context: CallbackContext, page=0) -> None:
         if user['characters']:
             random_character = random.choice(user['characters'])
             if 'img_url' in random_character:
+                media_url = random_character['img_url']
                 if update.message:
-                    await update.message.reply_photo(photo=random_character['img_url'], caption=harem_message, reply_markup=reply_markup)
+                    if media_url.endswith(('.mp4', '.mov', '.mkv')):
+                        await update.message.reply_video(video=media_url, caption=harem_message, reply_markup=reply_markup)
+                    else:
+                        await update.message.reply_photo(photo=media_url, caption=harem_message, reply_markup=reply_markup)
                 else:
                     if update.callback_query.message.caption != harem_message:
                         await update.callback_query.edit_message_caption(caption=harem_message, reply_markup=reply_markup)
+
             else:
                 if update.message:
                     await update.message.reply_text(harem_message, reply_markup=reply_markup)
