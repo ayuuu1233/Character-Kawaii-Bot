@@ -215,13 +215,28 @@ async def send_image(update: Update, context: CallbackContext) -> None:
     rarity_emoji = rarity_to_emoji.get(selected_character.get('rarity'), "❓")
 
     # Send the character's image and message
-    message = await context.bot.send_photo(
-        chat_id=chat_id,
-        photo=selected_character['img_url'],
-        caption=f"""<b>{selected_character['rarity'][0]} ᴋᴀᴡᴀɪ! ᴀ {selected_character['rarity'][2:]} ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀs ᴀᴘᴘᴇᴀʀᴇᴅ!</b>\n
-<b>ᴀᴅᴅ ʜᴇʀ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ ʙʏ sᴇɴᴅɪɴɢ</b>\n<b>/seize ɴᴀᴍᴇ</b>""",
-        parse_mode='HTML'
-    )
+     # Check karein ki URL video hai ya photo
+    file_url = selected_character['img_url']
+    
+    if file_url.endswith((".mp4", ".mov", ".mkv")):
+        # Agar video hai toh send_video use karein
+        message = await context.bot.send_video(
+            chat_id=chat_id,
+            video=file_url,
+            caption=f"""<b>{selected_character['rarity'][0]} ᴋᴀᴡᴀɪ! ᴀ {selected_character['rarity'][2:]} ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀs ᴀᴘᴘᴇᴀʀᴇᴅ!</b>\n
+<b>ᴀᴅᴅ ʜᴇʀ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ ʙʏ sᴇɴᴅɪɴɢ</b>\n<b>/kawaii ɴᴀᴍᴇ</b>""",
+            parse_mode='HTML'
+        )
+    else:
+        # Agar image hai toh purana wala send_photo
+        message = await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=file_url,
+            caption=f"""<b>{selected_character['rarity'][0]} ᴋᴀᴡᴀɪ! ᴀ {selected_character['rarity'][2:]} ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀs ᴀᴘᴘᴇᴀʀᴇᴅ!</b>\n
+<b>ᴀᴅᴅ ʜᴇʀ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ ʙʏ sᴇɴᴅɪɴɢ</b>\n<b>/kawaii ɴᴀᴍᴇ</b>""",
+            parse_mode='HTML'
+        )
+
 
     # Save the message link for retry/reference
     if update.effective_chat.type == "private":
@@ -321,7 +336,7 @@ async def guess(update: Update, context: CallbackContext) -> None:
         time_guessed = first_correct_guesses[chat_id]['time']
         user_link = f'<a href="tg://user?id={correct_guess_user.id}">{correct_guess_user.first_name}</a>'
         await update.message.reply_text(
-            f'🌟 This character <b>{seized_character}</b> has already been seized by {user_link}!\n'
+            f'🌟 This character <b>{kawaiied_character}</b> has already been kawaiied by {user_link}!\n'
             f'⏱️ Guessed at: <b>{time_guessed}</b>\n'
             f'🍵 Wait for the next character to spawn... 🌌',
             parse_mode='HTML'
@@ -361,7 +376,8 @@ async def guess(update: Update, context: CallbackContext) -> None:
         guessed_time_str = datetime.fromtimestamp(time_sent).strftime("%Y-%m-%d %H:%M:%S")
 
         if chat_id not in first_correct_guesses:
-            first_correct_guesses[chat_id] = []
+            first_correct_guesses[chat_id] = {'user': None, 'character': None, 'time': None}
+
 
         if user_id not in [user.id for user in first_correct_guesses[chat_id]]:
             first_correct_guesses[chat_id].append(update.effective_user)
@@ -507,7 +523,7 @@ async def start_bot():
     LOGGER.info("Pyrogram Client Started!")
 
     # 2. Saare Handlers register karo (Jo tune pehle likhe the)
-    application.add_handler(CommandHandler(["seize"], guess, block=False))
+    application.add_handler(CommandHandler(["kawaii"], guess, block=False))
     application.add_handler(MessageHandler(filters.ALL, message_counter, block=False))
     application.add_handler(CommandHandler('set_on', set_on, block=False))
     application.add_handler(CommandHandler('set_off', set_off, block=False))
