@@ -108,128 +108,108 @@ async def edit_waifu_command(client, message):
 
 
 
-# --- CALLBACK HANDLERS (FIXED) ---
+# --- CALLBACK HANDLERS (CLEANED & FIXED) ---
 
 @app.on_callback_query()
 async def handle_callbacks(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     data = callback_query.data
 
-    # --- ADD CHARACTER / WAIFU LOGIC ---
-    if data == "add_waifu":
-        # Yahan hum direct search inline query trigger kar rahe hain
-        await callback_query.answer("Searching for anime...")
+    # 1. ADD ANIME
+    if data == "add_anime":
+        user_states[user_id] = {"state": "adding_anime"}
+        await callback_query.message.edit_text("📝 **Master, naye Anime ka naam bhejiye:**")
+
+    # 2. ADD WAIFU (SEARCH)
+    elif data == "add_waifu":
         await callback_query.message.edit_text(
-            "🌸 **Master, niche diye gaye button par click karke Anime search karein:**",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔍 Search Anime", switch_inline_query_current_chat="choose_anime ")]
-            ])
+            "🔍 **Anime search karein jisme character add karna hai:**",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔍 Search Anime", switch_inline_query_current_chat="choose_anime ")
+            ]])
         )
 
-    # --- ADD ANIME LOGIC ---
-    elif data == "add_anime":
-        user_states[user_id] = {"state": "adding_anime"}
-        await callback_query.answer()
-        await callback_query.message.edit_text("📝 **Master, naye Anime ka naam bhejiye:**\n\n(Example: Naruto, One Piece)")
-
-    # --- JAB USER INLINE SE ANIME SELECT KAREGA ---
+    # 3. SELECT ANIME FROM INLINE
     elif data.startswith("add_waifu_"):
         anime_name = data.replace("add_waifu_", "")
         user_states[user_id] = {"state": "awaiting_waifu_name", "anime": anime_name}
-        await callback_query.answer()
-        await callback_query.message.edit_text(
-            f"🎬 **Anime:** `{anime_name}`\n\n✨ **Master, ab Character ka naam bhejiye:**"
-        )
+        await callback_query.message.edit_text(f"🎬 **Anime:** `{anime_name}`\n\n✨ **Character ka naam bhejiye:**")
 
-    # --- RENAME / EDIT LOGIC (Aapka purana wala) ---
-    elif data.startswith("rename_waifu_"):
+    # 4. SELECT RARITY (DURING ADD)
+    elif data.startswith("select_rarity_"):
+        rarity = data.replace("select_rarity_", "")
+        if user_id in user_states:
+            user_states[user_id].update({"rarity": rarity, "state": "awaiting_waifu_image"})
+            await callback_query.message.edit_text(f"✨ **Rarity:** {rarity}\n\n🖼️ **Ab Character ki Photo bhejiye:**")
+
+    # --- EDIT / REMOVE LOGIC ---
+
+    elif data.startswith("remove_waifu_"):
         waifu_id = data.split("_")[-1]
-        user_states[user_id] = {"state": "renaming_waifu", "waifu_id": waifu_id}
-        await callback_query.message.edit_text(f"📝 Master, send the **new name** for ID: {waifu_id}")
+        result = await collection.delete_one({"id": waifu_id})
+        if result.deleted_count > 0:
+            await callback_query.message.edit_text(f"🗑️ **Character (ID: {waifu_id}) database se delete kar diya gaya hai.**")
+        else:
+            await callback_query.answer("❌ Character nahi mila!", show_alert=True)
 
-    
-
-
-    # --- EDIT LOGIC ---
-    if data.startswith("change_rarity_"):
+    elif data.startswith("change_rarity_"):
         waifu_id = data.split("_")[-1]
         btns = [[InlineKeyboardButton(r, callback_data=f"set_rarity_{r}_{waifu_id}")] for r in rarity_emojis.keys()]
-        await callback_query.message.edit_text("✨ Select New Rarity:", reply_markup=InlineKeyboardMarkup(btns))
-
-    elif data.startswith("change_event_"):
-        waifu_id = data.split("_")[-1]
-        btns = [[InlineKeyboardButton(e, callback_data=f"set_new_event_{event_emojis[e]}_{waifu_id}")] for e in event_emojis.keys()]
-        btns.append([InlineKeyboardButton("🚫 Skip Event", callback_data=f"set_new_event_none_{waifu_id}")])
-        await callback_query.message.edit_text("🎉 Select Event:", reply_markup=InlineKeyboardMarkup(btns))
-
-    elif data.startswith("set_new_event_"):
-        parts = data.split("_")
-        waifu_id = parts[-1]
-        emoji = parts[-2]
-        if emoji == "none":
-            await collection.update_one({"id": waifu_id}, {"$set": {"event_emoji": "", "event_name": ""}})
-            await callback_query.message.edit_text("✅ Event cleared!")
-        else:
-            e_name = next((n for n, e in event_emojis.items() if e == emoji), "Event")
-            await collection.update_one({"id": waifu_id}, {"$set": {"event_emoji": emoji, "event_name": e_name}})
-            await callback_query.message.edit_text(f"✅ Event updated to {e_name}!")
+        await callback_query.message.edit_text("✨ **New Rarity select karein:**", reply_markup=InlineKeyboardMarkup(btns))
 
     elif data.startswith("set_rarity_"):
-        _, _, rarity, waifu_id = data.split("_", 3)
-        await collection.update_one({"id": waifu_id}, {"$set": {"rarity": rarity}})
-        await callback_query.message.edit_text(f"✅ Rarity changed to {rarity}!")
+        # Format: set_rarity_RARITYNAME_ID
+        parts = data.split("_")
+        waifu_id = parts[-1]
+        new_rarity = parts[2] # Adjusting index based on split
+        await collection.update_one({"id": waifu_id}, {"$set": {"rarity": new_rarity}})
+        await callback_query.message.edit_text(f"✅ **Rarity updated to:** {new_rarity}")
 
-    elif data.startswith("rename_waifu_"):
-        waifu_id = data.split("_")[-1]
-        user_states[user_id] = {"state": "renaming_waifu", "waifu_id": waifu_id}
-        await callback_query.message.edit_text(f"📝 Master, send the **new name** for ID: {waifu_id}")
-
-    # --- ADD LOGIC ---
-    elif data == "add_anime":
-        user_states[user_id] = {"state": "adding_anime"}
-        await callback_query.message.edit_text("Please enter the name of the new Anime:")
-
-    elif data == "add_waifu":
-        await callback_query.message.edit_text("Search anime to add character:", 
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔍 Search", switch_inline_query_current_chat="choose_anime ")]]))
-
-    elif data.startswith("add_waifu_"):
-        anime = data.replace("add_waifu_", "")
-        user_states[user_id] = {"state": "awaiting_waifu_name", "anime": anime}
-        await callback_query.message.edit_text(f"Anime: {anime}\nNow send Character Name:")
-
-# --- MESSAGE HANDLERS ---
+# --- MESSAGE HANDLERS (FIXED FLOW) ---
 
 @app.on_message(filters.private & (filters.text | filters.photo))
 async def handle_inputs(client, message: Message):
     user_id = message.from_user.id
     if user_id not in user_states: return
+    
     state_data = user_states[user_id]
+    current_state = state_data.get("state")
 
-    if state_data["state"] == "adding_anime" and message.text:
+    # Adding New Anime
+    if current_state == "adding_anime" and message.text:
         await collection.insert_one({"anime": message.text.strip(), "is_anime_only": True})
-        await message.reply_text("✅ Anime Added!")
+        await message.reply_text(f"✅ **Anime Added:** {message.text}")
         user_states.pop(user_id)
 
-    elif state_data["state"] == "renaming_waifu" and message.text:
+    # Renaming Existing Waifu
+    elif current_state == "renaming_waifu" and message.text:
         await collection.update_one({"id": state_data["waifu_id"]}, {"$set": {"name": message.text.strip()}})
-        await message.reply_text(f"✅ Name updated to: {message.text}")
+        await message.reply_text(f"✅ **Name Updated:** {message.text}")
         user_states.pop(user_id)
 
-    elif state_data["state"] == "awaiting_waifu_name" and message.text:
-        user_states[user_id].update({"name": message.text.strip(), "state": "selecting_rarity"})
+    # Awaiting Name for New Waifu
+    elif current_state == "awaiting_waifu_name" and message.text:
+        user_states[user_id].update({"name": message.text.strip(), "state": "selecting_rarity_state"})
         btns = [[InlineKeyboardButton(r, callback_data=f"select_rarity_{r}")] for r in rarity_emojis.keys()]
-        await message.reply_text("Select Rarity:", reply_markup=InlineKeyboardMarkup(btns))
+        await message.reply_text("✨ **Rarity select karein:**", reply_markup=InlineKeyboardMarkup(btns))
 
-    elif state_data["state"] == "awaiting_waifu_image" and message.photo:
+    # Awaiting Photo for New Waifu
+    elif current_state == "awaiting_waifu_image" and message.photo:
         waifu_id = str(await get_next_sequence_number('character_id')).zfill(2)
         char = {
-            "id": waifu_id, "name": state_data["name"], "anime": state_data["anime"],
-            "rarity": state_data["rarity"], "img_url": message.photo.file_id,
-            "event_emoji": state_data.get("event_emoji", ""), "event_name": state_data.get("event_name", "")
+            "id": waifu_id, 
+            "name": state_data["name"], 
+            "anime": state_data["anime"],
+            "rarity": state_data["rarity"], 
+            "img_url": message.photo.file_id,
+            "event_emoji": state_data.get("event_emoji", ""), 
+            "event_name": state_data.get("event_name", "")
         }
         await collection.insert_one(char)
-        await message.reply_text(f"✅ Added! ID: {waifu_id}")
+        await message.reply_photo(
+            photo=message.photo.file_id,
+            caption=f"✅ **Character Added Successfully!**\n\n🆔 ID: `{waifu_id}`\n👧 Name: {state_data['name']}\n🎬 Anime: {state_data['anime']}"
+        )
         user_states.pop(user_id)
 
 # --- INLINE QUERY ---
