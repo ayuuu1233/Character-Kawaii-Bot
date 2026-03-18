@@ -106,12 +106,49 @@ async def edit_waifu_command(client, message):
     else:
         await message.reply_text("Character not found.")
 
-# --- CALLBACK HANDLERS (MERGED) ---
+
+
+# --- CALLBACK HANDLERS (FIXED) ---
 
 @app.on_callback_query()
 async def handle_callbacks(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     data = callback_query.data
+
+    # --- ADD CHARACTER / WAIFU LOGIC ---
+    if data == "add_waifu":
+        # Yahan hum direct search inline query trigger kar rahe hain
+        await callback_query.answer("Searching for anime...")
+        await callback_query.message.edit_text(
+            "🌸 **Master, niche diye gaye button par click karke Anime search karein:**",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔍 Search Anime", switch_inline_query_current_chat="choose_anime ")]
+            ])
+        )
+
+    # --- ADD ANIME LOGIC ---
+    elif data == "add_anime":
+        user_states[user_id] = {"state": "adding_anime"}
+        await callback_query.answer()
+        await callback_query.message.edit_text("📝 **Master, naye Anime ka naam bhejiye:**\n\n(Example: Naruto, One Piece)")
+
+    # --- JAB USER INLINE SE ANIME SELECT KAREGA ---
+    elif data.startswith("add_waifu_"):
+        anime_name = data.replace("add_waifu_", "")
+        user_states[user_id] = {"state": "awaiting_waifu_name", "anime": anime_name}
+        await callback_query.answer()
+        await callback_query.message.edit_text(
+            f"🎬 **Anime:** `{anime_name}`\n\n✨ **Master, ab Character ka naam bhejiye:**"
+        )
+
+    # --- RENAME / EDIT LOGIC (Aapka purana wala) ---
+    elif data.startswith("rename_waifu_"):
+        waifu_id = data.split("_")[-1]
+        user_states[user_id] = {"state": "renaming_waifu", "waifu_id": waifu_id}
+        await callback_query.message.edit_text(f"📝 Master, send the **new name** for ID: {waifu_id}")
+
+    
+
 
     # --- EDIT LOGIC ---
     if data.startswith("change_rarity_"):
