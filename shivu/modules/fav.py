@@ -49,7 +49,9 @@ async def fav(client: Client, message):
         )
         return
 
-    character = next((c for c in user['characters'] if str(c.get('id')) == character_id), None)
+    # Look for the character in the user's collection
+    character = next((c for c in user.get('characters', []) if str(c.get('id')) == character_id), None)
+    
     if not character:
         await message.reply_text(
             f"{random.choice(CANCEL_EMOJIS)} **Character not found in your collection!**\n"
@@ -62,6 +64,7 @@ async def fav(client: Client, message):
     rarity = character.get('rarity', 'Common').upper()
     rarity_emoji, rarity_display = RARITY_EMOJIS.get(rarity, ('', rarity))
 
+    # We send the photo and store the character_id in the callback data itself
     confirmation_message = await message.reply_photo(
         photo=character['img_url'],
         caption=(
@@ -80,54 +83,66 @@ async def fav(client: Client, message):
         ])
     )
 
+    # FIXED: Changed .message_id to .id
+    if not hasattr(app, 'user_data'):
+        app.user_data = {}
     app.user_data.setdefault("fav_confirmations", {})
-    app.user_data["fav_confirmations"][confirmation_message.message_id] = character_id
+    app.user_data["fav_confirmations"][confirmation_message.id] = character_id
 
-@app.on_callback_query(filters.regex(r"^fav_(yes|no)_.+"))
+@app.on_callback_query(filters.regex(r"^fav_(yes|no)_(.+)"))
 async def handle_fav_confirmation(client: Client, callback_query):
-    data_parts = callback_query.data.split("_")
-    if len(data_parts) < 3:
-        await callback_query.answer("Invalid data received. Please try again.")
-        return
-
-    action = data_parts[1]
-    character_id = "_".join(data_parts[2:])
+    # Extract data from the regex groups
+    action = callback_query.matches[0].group(1)
+    character_id = callback_query.matches[0].group(2)
     user_id = callback_query.from_user.id
 
-    user = await user_collection.find_one({'id': user_id})
-    if not user or 'characters' not in user:
-        await callback_query.answer("No characters found in your collection!")
-        return
-
-    character = next((c for c in user['characters'] if str(c.get('id')) == character_id), None)
-    if not character:
-        await callback_query.answer("Character not found!")
-        return
-
-    if action == "yes":
-        await user_collection.update_one(
-            {'id': user_id},
-            {'$set': {'favorites': [character_id]}}
-        )
-        await callback_query.message.edit_caption(
-            caption=(
-                f"🌟 **Success!** `{character['name']}` is now your favorite character! "
-                f"{random.choice(SUCCESS_EMOJIS)}\n\n"
-                f"Enjoy your journey with **{character['name']}!**"
-            ),
-            reply_markup=None
-        )
-    elif action == "no":
+    if action == "no":
         await callback_query.message.edit_caption(
             caption=f"{random.choice(CANCEL_EMOJIS)} **Operation cancelled.**",
             reply_markup=None
         )
+        return
+
+    # If action is 'yes'
+    user = await user_collection.find_one({'id': user_id})
+    character = next((c for c in user.get('characters', []) if str(c.get('id')) == character_id), None)
+
+    if not character:
+        await callback_query.answer("Character no longer in your collection!", show_alert=True)
+        return
+
+    await user_collection.update_one(
+        {'id': user_id},
+        {'$set': {'favorites': [character_id]}}
+    )
+    
+    await callback_query.message.edit_caption(
+        caption=(
+            f"🌟 **Success!** `{character['name']}` is now your favorite character! "
+            f"{random.choice(SUCCESS_EMOJIS)}\n\n"
+            f"Enjoy your journey with **{character['name']}!**"
+        ),
+        reply_markup=None
+    )
+
 
 @app.on_message(filters.command("unfav"))
 async def unfav(client: Client, message):
     user_id = message.from_user.id
+    
+    # Check if the user even has a favorite set
+    user = await user_collection.find_one({'id': user_id, 'favorites': {'$exists': True}})
+    
+    if not user:
+        await message.reply_text(
+            f"{random.choice(CANCEL_EMOJIS)} **You don't have a favorite character set!**"
+        )
+        return
+
+    # Unset the favorites field
     await user_collection.update_one({'id': user_id}, {'$unset': {'favorites': ''}})
+    
     await message.reply_text(
-        f"{random.choice(ANIMATED_EMOJIS)} **Favorite reset!** "
+        f"{random.choice(ANIMATED_EMOJIS)} **Favorite reset!**\n"
         f"You can now choose a new favorite waifu!"
-  )
+    ) # Added the missing closing parenthesis here
