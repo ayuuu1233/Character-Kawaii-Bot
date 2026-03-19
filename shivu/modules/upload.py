@@ -26,7 +26,7 @@ def get_next_sequence_number(name):
 
 # ------------------ EMOJIS ------------------ #
 rarity_emojis = {
-    "1":'⚪️ Common': '⚪️',
+        '⚪️ Common': '⚪️',
         '🔮 Limited Edition': '🔮',
         '🫧 Premium': '🫧',
         '🌸 Exotic': '🌸',
