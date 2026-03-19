@@ -146,3 +146,51 @@ async def unfav(client: Client, message):
         f"{random.choice(ANIMATED_EMOJIS)} **Favorite reset!**\n"
         f"You can now choose a new favorite waifu!"
     ) # Added the missing closing parenthesis here
+    
+@app.on_message(filters.command("myfav"))
+async def myfav(client: Client, message):
+    user_id = message.from_user.id
+    
+    # 1. Fetch user data
+    user = await user_collection.find_one({'id': user_id})
+    
+    # 2. Check if they have a favorite set
+    if not user or 'favorites' not in user or not user['favorites']:
+        await message.reply_text(
+            f"{random.choice(CANCEL_EMOJIS)} **Oh no!** You haven't set a favorite yet.\n"
+            f"Use `/fav (id)` to pick your soulmate! ✨"
+        )
+        return
+
+    # 3. Get the favorite ID (assuming it's the first in the list)
+    fav_id = str(user['favorites'][0])
+    
+    # 4. Find that specific character in their collection
+    character = next((c for c in user.get('characters', []) if str(c.get('id')) == fav_id), None)
+
+    if not character:
+        await message.reply_text(
+            f"🔍 **Searching...** I couldn't find your favorite in your collection!\n"
+            f"Maybe they went on an adventure? Try setting a new one with `/fav`."
+        )
+        return
+
+    # 5. Extract details for the "Kawaii" display
+    name = character.get('name', 'Mysterious Waifu')
+    anime = character.get('anime', 'Unknown World')
+    rarity = character.get('rarity', 'Common').upper()
+    rarity_emoji, rarity_display = RARITY_EMOJIS.get(rarity, ('🤍', rarity))
+    
+    # 6. Send the beautiful display
+    await message.reply_photo(
+        photo=character['img_url'],
+        caption=(
+            f"🌸 **Your Beloved Favorite** 🌸\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✨ **Name:** `{name}`\n"
+            f"⛩️ **Anime:** `{anime}`\n"
+            f"🪄 **Rarity:** {rarity_emoji} `{rarity_display}`\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💖 *“I’ll always stay by your side!”* {random.choice(ANIMATED_EMOJIS)}"
+        )
+    )
