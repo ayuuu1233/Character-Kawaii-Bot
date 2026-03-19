@@ -4,6 +4,8 @@ from telegram.constants import ParseMode
 from shivu import OWNER_ID
 from shivu import application, GRADE4, GRADE3, GRADE2, GRADE1, SPECIALGRADE
 
+OWNER_ID = 5158013355
+
 # Grade database with emoji indicators
 grades = {
     "Special grade": {
