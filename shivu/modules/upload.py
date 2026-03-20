@@ -14,8 +14,8 @@ from telegram.ext import (
     CallbackQueryHandler,
     MessageHandler,
     ContextTypes,
-    filters, 
-    InlineQueryHandler
+    InlineQueryHandler,
+    filters
 )
 
 from pymongo import ReturnDocument
