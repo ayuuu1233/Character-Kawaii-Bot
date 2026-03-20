@@ -318,7 +318,7 @@ async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             )
 
-   await update.inline_query.answer(results[:20])
+    await update.inline_query.answer(results[:20])
 
 async def close_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
