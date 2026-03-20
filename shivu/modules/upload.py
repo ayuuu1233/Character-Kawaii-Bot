@@ -13,8 +13,8 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
-    Filters,
-    CallbackContext,
+    ContextTypes,
+    filters
     InlineQueryHandler
 )
 
@@ -70,25 +70,25 @@ event_emojis = {
 }
 
 # ------------------ START ------------------ #
-def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in sudo_users:
         return
 
     keyboard = [
         [InlineKeyboardButton("⚙ Admin Panel ⚙", callback_data="admin_panel")]
     ]
-    update.message.reply_text(
+    await update.message.reply_text(
         "Welcome Admin 👑",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 # ------------------ UPLOAD PANEL ------------------ #
-def upload_command(update: Update, context: CallbackContext):
+async def upload_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     name = update.effective_user.first_name
 
     if user_id not in sudo_users:
-        update.message.reply_text("❌ Access Denied — This realm is not for you...")
+        await update.message.reply_text("❌ Access Denied — This realm is not for you...")
         return
 
     text = f"""
@@ -117,16 +117,16 @@ You have unlocked the Creator Panel...
         ]
     ]
 
-    update.message.reply_text(
+    await  update.message.reply_text(
         text,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )      
 
 # ------------------ ADMIN PANEL ------------------ #
-def admin_panel(update: Update, context: CallbackContext):
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+await query.answer()
 
     total_waifus = collection.count_documents({"type": "waifu"})
     total_anime = collection.distinct("anime")
@@ -144,19 +144,19 @@ Users: {total_harem}
         [InlineKeyboardButton("📺 Anime List", callback_data="anime_list")]
     ]
 
-    query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+  await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # ------------------ ADD WAIFU FLOW ------------------ #
-def add_waifu_callback(update: Update, context: CallbackContext):
+async def add_waifu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+await query.answer()
 
     user_states[query.from_user.id] = {"step": "search_anime"}
 
-    query.edit_message_text("🔍 Send anime name to search...")
+ await query.edit_message_text("🔍 Send anime name to search...")
 
 # ------------------ TEXT HANDLER ------------------ #
-def receive_text(update: Update, context: CallbackContext):
+async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if user_id not in user_states:
@@ -170,7 +170,7 @@ def receive_text(update: Update, context: CallbackContext):
         state["anime"] = anime
         state["step"] = "name"
 
-        update.message.reply_text("✏ Send character name")
+   await update.message.reply_text("✏ Send character name")
 
     # STEP 2: NAME
     elif state["step"] == "name":
@@ -182,13 +182,13 @@ def receive_text(update: Update, context: CallbackContext):
             for k, v in rarity_emojis.items()
         ]
 
-        update.message.reply_text(
+   await update.message.reply_text(
             "Select Rarity:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
 # ------------------ RARITY ------------------ #
-def select_rarity(update: Update, context: CallbackContext):
+async def select_rarity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -201,13 +201,13 @@ def select_rarity(update: Update, context: CallbackContext):
         for k, v in event_emojis.items()
     ]
 
-    query.edit_message_text(
+ await query.edit_message_text(
         "Select Event:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 # ------------------ EVENT ------------------ #
-def select_event(update: Update, context: CallbackContext):
+async def select_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
 
@@ -215,10 +215,10 @@ def select_event(update: Update, context: CallbackContext):
     user_states[user_id]["event"] = event
     user_states[user_id]["step"] = "photo"
 
-    query.edit_message_text("📸 Send character photo")
+await query.edit_message_text("📸 Send character photo")
 
 # ------------------ PHOTO ------------------ #
-def receive_photo(update: Update, context: CallbackContext):
+async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if user_id not in user_states:
@@ -245,27 +245,27 @@ def receive_photo(update: Update, context: CallbackContext):
 
     collection.insert_one(data)
 
-    update.message.reply_text(
+ await update.message.reply_text(
         f"✅ Character Added!\nID: {waifu_id}\n{state['name']}"
     )
 
     del user_states[user_id]
 
 # ------------------ EDIT ------------------ #
-def edit_waifu(update: Update, context: CallbackContext):
+async def edit_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in sudo_users:
         return
 
     try:
         waifu_id = int(context.args[0])
     except:
-        update.message.reply_text("Usage: /edit <id>")
+    await update.message.reply_text("Usage: /edit <id>")
         return
 
     waifu = collection.find_one({"id": waifu_id})
 
     if not waifu:
-        update.message.reply_text("Not Found")
+    await update.message.reply_text("Not Found")
         return
 
     keyboard = [
@@ -275,33 +275,33 @@ def edit_waifu(update: Update, context: CallbackContext):
         [InlineKeyboardButton("Change Event", callback_data=f"eventedit_{waifu_id}")]
     ]
 
-    update.message.reply_photo(
+ await update.message.reply_photo(
         waifu["img"],
         caption=f"{waifu['name']} ({waifu['anime']})",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 # ------------------ RESET ------------------ #
-def reset_waifu(update: Update, context: CallbackContext):
+async def reset_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     waifu_id = int(query.data.split("_")[1])
 
     collection.update_one({"id": waifu_id}, {"$set": {"grabbed": 0}})
     user_collection.update_many({}, {"$pull": {"harem": waifu_id}})
 
-    query.answer("Reset Done ✅")
+ await query.answer("Reset Done ✅")
 
 # ------------------ REMOVE ------------------ #
-def remove_waifu(update: Update, context: CallbackContext):
+async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     waifu_id = int(query.data.split("_")[1])
 
     collection.delete_one({"id": waifu_id})
 
-    query.edit_message_text("❌ Deleted")
+ await query.edit_message_text("❌ Deleted")
 
 # ------------------ INLINE SEARCH ------------------ #
-def search_anime(update: Update, context: CallbackContext):
+async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
 
     results = []
@@ -319,13 +319,13 @@ def search_anime(update: Update, context: CallbackContext):
                 )
             )
 
-    update.inline_query.answer(results[:20])
+ await update.inline_query.answer(results[:20])
 
-def close_panel(update: Update, context: CallbackContext):
+async def close_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    query.answer()
+  await query.answer()
 
-    query.edit_message_text("✨ Panel closed... Come back anytime Senpai 💖")
+  await query.edit_message_text("✨ Panel closed... Come back anytime Senpai 💖")
 
 # ------------------ MAIN ------------------ #
 def main():
@@ -339,8 +339,8 @@ def main():
 
     application.add_handler(CommandHandler("edit", edit_waifu))
 
-    application.add_handler(MessageHandler(Filters.text & ~Filters.command, receive_text))
-    application.add_handler(MessageHandler(Filters.photo, receive_photo))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_text))
+    application.add_handler(MessageHandler(filters.PHOTO, receive_photo))
 
     application.add_handler(InlineQueryHandler(search_anime))
 
