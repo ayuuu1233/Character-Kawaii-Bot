@@ -143,7 +143,7 @@ Users: {total_harem}
         [InlineKeyboardButton("📺 Anime List", callback_data="anime_list")]
     ]
 
-  await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # ------------------ ADD WAIFU FLOW ------------------ #
 async def add_waifu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
