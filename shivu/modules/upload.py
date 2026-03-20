@@ -125,7 +125,7 @@ You have unlocked the Creator Panel...
 # ------------------ ADMIN PANEL ------------------ #
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-await query.answer()
+    await query.answer()
 
     total_waifus = collection.count_documents({"type": "waifu"})
     total_anime = collection.distinct("anime")
