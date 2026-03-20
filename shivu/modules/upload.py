@@ -258,7 +258,7 @@ async def edit_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         waifu_id = int(context.args[0])
     except:
-    await update.message.reply_text("Usage: /edit <id>")
+        await update.message.reply_text("Usage: /edit <id>")
         return
 
     waifu = collection.find_one({"id": waifu_id})
