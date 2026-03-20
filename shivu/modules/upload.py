@@ -264,7 +264,7 @@ async def edit_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     waifu = collection.find_one({"id": waifu_id})
 
     if not waifu:
-    await update.message.reply_text("Not Found")
+        await update.message.reply_text("Not Found")
         return
 
     keyboard = [
