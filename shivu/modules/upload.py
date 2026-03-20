@@ -19,7 +19,7 @@ from telegram.ext import (
 )
 
 from pymongo import ReturnDocument
-from shivu import application, collection, user_collection, sudo_users
+from shivu import application, collection, user_collection, sudo_users, CHARA_CHANNEL_ID, SUPPORT_CHAT, 
 
 # ------------------ LOGGING ------------------ #
 logging.basicConfig(level=logging.INFO)
