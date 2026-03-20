@@ -16,7 +16,7 @@ NEW_CHARACTER_TIME = time(18, 0)  # 6:00 PM
 SUDO_USER_IDS = (6402009857, 7004889403, 1135445089, 5158013355, 5630057244, 
                  1374057577, 6305653111, 5421067814, 7497950160, 7334126640, 
                  6835013483, 1993290981, 1742711103, 6180567980)  # Actual sudo user IDs as integers
-CHANNEL_ID = -1002049694247  # Actual channel ID as integer
+CHARA_CHANNEL_ID = -1002596866659  # Actual channel ID as integer
 
 # Function to send a message to all sudo users
 async def send_message_to_sudo_users(app, text):
