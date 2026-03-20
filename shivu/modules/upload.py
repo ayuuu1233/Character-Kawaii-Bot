@@ -152,7 +152,7 @@ async def add_waifu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     user_states[query.from_user.id] = {"step": "search_anime"}
 
- await query.edit_message_text("🔍 Send anime name to search...")
+    await query.edit_message_text("🔍 Send anime name to search...")
 
 # ------------------ TEXT HANDLER ------------------ #
 async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -169,7 +169,7 @@ async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         state["anime"] = anime
         state["step"] = "name"
 
-   await update.message.reply_text("✏ Send character name")
+        await update.message.reply_text("✏ Send character name")
 
     # STEP 2: NAME
     elif state["step"] == "name":
@@ -181,7 +181,7 @@ async def receive_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for k, v in rarity_emojis.items()
         ]
 
-   await update.message.reply_text(
+        await update.message.reply_text(
             "Select Rarity:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
@@ -200,7 +200,7 @@ async def select_rarity(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for k, v in event_emojis.items()
     ]
 
- await query.edit_message_text(
+    await query.edit_message_text(
         "Select Event:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -214,7 +214,7 @@ async def select_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_states[user_id]["event"] = event
     user_states[user_id]["step"] = "photo"
 
-await query.edit_message_text("📸 Send character photo")
+    await query.edit_message_text("📸 Send character photo")
 
 # ------------------ PHOTO ------------------ #
 async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -244,7 +244,7 @@ async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     collection.insert_one(data)
 
- await update.message.reply_text(
+    await update.message.reply_text(
         f"✅ Character Added!\nID: {waifu_id}\n{state['name']}"
     )
 
@@ -274,7 +274,7 @@ async def edit_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("Change Event", callback_data=f"eventedit_{waifu_id}")]
     ]
 
- await update.message.reply_photo(
+    await update.message.reply_photo(
         waifu["img"],
         caption=f"{waifu['name']} ({waifu['anime']})",
         reply_markup=InlineKeyboardMarkup(keyboard)
@@ -288,7 +288,7 @@ async def reset_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     collection.update_one({"id": waifu_id}, {"$set": {"grabbed": 0}})
     user_collection.update_many({}, {"$pull": {"harem": waifu_id}})
 
- await query.answer("Reset Done ✅")
+    await query.answer("Reset Done ✅")
 
 # ------------------ REMOVE ------------------ #
 async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -297,7 +297,7 @@ async def remove_waifu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     collection.delete_one({"id": waifu_id})
 
- await query.edit_message_text("❌ Deleted")
+    await query.edit_message_text("❌ Deleted")
 
 # ------------------ INLINE SEARCH ------------------ #
 async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -318,13 +318,13 @@ async def search_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             )
 
- await update.inline_query.answer(results[:20])
+   await update.inline_query.answer(results[:20])
 
 async def close_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-  await query.answer()
+    await query.answer()
 
-  await query.edit_message_text("✨ Panel closed... Come back anytime Senpai 💖")
+    await query.edit_message_text("✨ Panel closed... Come back anytime Senpai 💖")
 
 # ------------------ MAIN ------------------ #
 def main():
