@@ -148,7 +148,7 @@ Users: {total_harem}
 # ------------------ ADD WAIFU FLOW ------------------ #
 async def add_waifu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-await query.answer()
+    await query.answer()
 
     user_states[query.from_user.id] = {"step": "search_anime"}
 
