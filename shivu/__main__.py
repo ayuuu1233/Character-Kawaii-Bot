@@ -12,6 +12,7 @@ from shivu import collection, top_global_groups_collection, group_user_totals_co
 from shivu import application, SUPPORT_CHAT, UPDATE_CHAT, OWNER_ID, sudo_users, db, LOGGER
 from shivu import set_on_data, set_off_data
 from shivu.modules import ALL_MODULES
+from shivu.modules import upload
 from datetime import datetime
 
 locks = {}
