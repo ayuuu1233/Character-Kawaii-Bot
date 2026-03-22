@@ -94,10 +94,13 @@ async def scheduler():
 
 # --- START & ADMIN PANEL ---
 @app.on_message(filters.command("start") & filters.private)
-async def start_handler(_, msg):
-    if msg.from_user.id in SUDO_USER_IDS:
-        await msg.reply_text(f"Hello Admin!", reply_markup=ReplyKeyboardMarkup(
-            [[KeyboardButton("⚙ Admin panel ⚙")]], resize_keyboard=True
+async def start(client, message):
+    if str(message.from_user.id) in sudo_users:
+        sudo_user = await app.get_users(message.from_user.id)
+        sudo_user_first_name = sudo_user.first_name
+        await message.reply_text(f"Hello [{sudo_user_first_name}](tg://user?id={message.from_user.id})!", reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton("⚙ Admin panel ⚙")]],
+            resize_keyboard=True
         ))
 
 @app.on_message(filters.regex("^⚙ Admin panel ⚙$") & filters.private)
