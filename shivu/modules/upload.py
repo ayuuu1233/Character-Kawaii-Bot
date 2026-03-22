@@ -1,5 +1,8 @@
 import asyncio
+import logging
+import traceback
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 from pyrogram import Client, filters
 from pyrogram.types import (
     InlineKeyboardButton, InlineKeyboardMarkup, 
@@ -9,6 +12,18 @@ from pyrogram.types import (
 from pymongo import ReturnDocument
 from shivu import user_collection, collection, CHARA_CHANNEL_ID, SUPPORT_CHAT, shivuu as app, sudo_users, db
 from pyrogram.errors import BadRequest
+
+# --- 1. LOGGING CONFIGURATION (Sabse Top Pe) ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s - %(levelname)s] - %(name)s - %(message)s",
+    datefmt='%d-%b-%y %H:%M:%S',
+    handlers=[
+        RotatingFileHandler("bot_logs.txt", maxBytes=5000000, backupCount=2),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION ---
 GOOD_MORNING_TIME = "08:00"
@@ -35,6 +50,18 @@ event_emojis = {
     '🎒 School': '🎒', '🥻 Saree': '🥻', '🏖️ Summer': '🏖️', '🏀 Basketball': '🏀',
     '⚽ Soccer': '⚽'
 }
+
+# --- 2. ERROR LOGGER HELPER ---
+async def log_error(e, context="General"):
+    err_trace = traceback.format_exc()
+    logger.error(f"Error in {context}: {str(e)}", exc_info=True)
+    for uid in SUDO_USER_IDS:
+        try:
+            await app.send_message(
+                uid, 
+                f"❌ **LOG ALERT: {context}**\n\n**Error:** `{str(e)}`"
+            )
+        except: pass
 
 # --- HELPERS ---
 async def get_next_id():
@@ -233,6 +260,14 @@ async def photo_processor(_, msg):
         await collection.update_one({"id": cid}, {"$set": {"img_url": msg.photo.file_id}})
         await msg.reply(f"✅ Image updated for ID {cid}")
         user_states.pop(uid)
+
+# --- LOGS RETRIEVAL COMMAND ---
+@app.on_message(filters.command("getlogs") & filters.user(SUDO_USER_IDS))
+async def get_logs_file(_, msg):
+    try:
+        await msg.reply_document("bot_logs.txt", caption="📄 Current Bot Logs")
+    except Exception as e:
+        await msg.reply(f"Error getting logs: {e}")
 
 # --- MAIN RUNNER ---
 async def start_bot():
