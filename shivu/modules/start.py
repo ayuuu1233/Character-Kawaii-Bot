@@ -154,8 +154,8 @@ async def start(update: Update, context: CallbackContext) -> None:
             [InlineKeyboardButton("✧ʜᴇʟᴘ✧", callback_data='help')],
       ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        video_url = "https://files.catbox.moe/nfu6s9.mp4"
-        sticker_url = "CAACAgUAAxkBAAEBeVpm-jtB-lkO8Oixy5SZHTAy1Ymp4QACEgwAAv75EFbYc5vQ3hQ1Ph4E"
+        video_url = "https://files.catbox.moe/931ph0.mp4"
+        sticker_url = "CAACAgIAAxkBAAFGEk9py21yQ49JGa-8KmsC2SjjhlJDIwACLXIAAp0y-Eqfu3A5hCItKToE"
         
         await context.bot.send_sticker(chat_id=update.effective_chat.id, sticker=sticker_url)
         await context.bot.send_video(chat_id=update.effective_chat.id, video=video_url, caption=caption, reply_markup=reply_markup, parse_mode='HTML')
@@ -166,7 +166,7 @@ async def start(update: Update, context: CallbackContext) -> None:
              InlineKeyboardButton("ꔷ ᴜᴘᴅᴧᴛєs ꔷ", url='https://t.me/upper_moon_chat')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        video_url = "https://telegra.ph/file/0b2e8e33d07a0d0e5914f.mp4"
+        video_url = "https://files.catbox.moe/dlg0rb.mp4"
         await context.bot.send_video(chat_id=update.effective_chat.id, video=video_url, caption=f"👋 Hi there, <a href='tg://user?id={user_id}'>{first_name}</a>!\n\n✨ I'm online and ready to assist!", reply_markup=reply_markup, parse_mode='HTML')
         
 async def button(update: Update, context: CallbackContext) -> None:
