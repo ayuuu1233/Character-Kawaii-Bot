@@ -1,285 +1,679 @@
-import asyncio
 import logging
-import traceback
-from datetime import datetime
-from logging.handlers import RotatingFileHandler
+import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import (
-    InlineKeyboardButton, InlineKeyboardMarkup, 
-    InlineQueryResultArticle, InputTextMessageContent, 
+    InlineKeyboardButton, InlineKeyboardMarkup,
+    InlineQueryResultArticle, InputTextMessageContent,
     ReplyKeyboardMarkup, KeyboardButton
 )
 from pymongo import ReturnDocument
 from shivu import user_collection, collection, CHARA_CHANNEL_ID, SUPPORT_CHAT, shivuu as app, sudo_users, db
 from pyrogram.errors import BadRequest
 
-# --- 1. LOGGING CONFIGURATION (Sabse Top Pe) ---
+# ─────────────────────────────────────────────
+#  LOGGING
+# ─────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s - %(levelname)s] - %(name)s - %(message)s",
     datefmt='%d-%b-%y %H:%M:%S',
-    handlers=[
-        RotatingFileHandler("bot_logs.txt", maxBytes=5000000, backupCount=2),
-        logging.StreamHandler()
-    ]
 )
 logger = logging.getLogger(__name__)
 
-# --- CONFIGURATION ---
-GOOD_MORNING_TIME = "08:00"
-GOOD_NIGHT_TIME = "22:00"
-NEW_CHARACTER_TIME = "18:00"
-
-SUDO_USER_IDS = [6402009857, 7004889403, 1135445089, 5158013355, 5630057244, 
-                 1374057577, 6305653111, 5421067814, 7497950160, 7334126640, 
-                 6835013483, 1993290981, 1742711103, 6180567980]
-CHARA_CHANNEL_ID = -1002596866659
-
-user_states = {}
-
+# ─────────────────────────────────────────────
+#  CONSTANTS
+# ─────────────────────────────────────────────
 rarity_emojis = {
-    '⚪️ Common': '⚪️', '🔮 Limited Edition': '🔮', '🫧 Premium': '🫧',
-    '🌸 Exotic': '🌸', '💮 Exclusive': '💮', '👶 Chibi': '👶',
-    '🟡 Legendary': '🟡', '🟠 Rare': '🟠', '🔵 Medium': '🔵',
-    '🎐 Astral': '🎐', '💞 Valentine': '💞'
+    '⚪️ Common': '⚪️',
+    '🔮 Limited Edition': '🔮',
+    '🫧 Premium': '🫧',
+    '🌸 Exotic': '🌸',
+    '💮 Exclusive': '💮',
+    '👶 Chibi': '👶',
+    '🟡 Legendary': '🟡',
+    '🟠 Rare': '🟠',
+    '🔵 Medium': '🔵',
+    '🎐 Astral': '🎐',
+    '💞 Valentine': '💞',
 }
 
 event_emojis = {
-    '🩺 Nurse': '🩺', '🐰 Bunny': '🐰', '🧹 Maid': '🧹', '🎃 Halloween': '🎃',
-    '🎄 Christmas': '🎄', '🎩 Tuxedo': '🎩', '☃️ Winter': '☃️', '👘 Kimono': '👘',
-    '🎒 School': '🎒', '🥻 Saree': '🥻', '🏖️ Summer': '🏖️', '🏀 Basketball': '🏀',
-    '⚽ Soccer': '⚽'
+    '🩺 Nurse': '🩺',
+    '🐰 Bunny': '🐰',
+    '🧹 Maid': '🧹',
+    '🎃 Halloween': '🎃',
+    '🎄 Christmas': '🎄',
+    '🎩 Tuxedo': '🎩',
+    '☃️ Winter': '☃️',
+    '👘 Kimono': '👘',
+    '🎒 School': '🎒',
+    '🥻 Saree': '🥻',
+    '🏖️ Summer': '🏖️',
+    '🏀 Basketball': '🏀',
+    '⚽ Soccer': '⚽',
 }
 
-# --- 2. ERROR LOGGER HELPER ---
-async def log_error(e, context="General"):
-    err_trace = traceback.format_exc()
-    logger.error(f"Error in {context}: {str(e)}", exc_info=True)
-    for uid in SUDO_USER_IDS:
-        try:
-            await app.send_message(
-                uid, 
-                f"❌ **LOG ALERT: {context}**\n\n**Error:** `{str(e)}`"
-            )
-        except: pass
+# In-memory state store
+user_states = {}
 
-# --- HELPERS ---
-async def get_next_id():
-    seq = await db.sequences.find_one_and_update(
-        {'_id': 'character_id'}, {'$inc': {'sequence_value': 1}},
-        upsert=True, return_document=ReturnDocument.AFTER
+# ─────────────────────────────────────────────
+#  HELPERS
+# ─────────────────────────────────────────────
+def is_sudo(user_id: int) -> bool:
+    """Check if user is a sudo user (handles both int and str stored IDs)."""
+    return str(user_id) in sudo_users or user_id in sudo_users
+
+
+async def get_next_sequence_number(sequence_name: str) -> int:
+    sequence_collection = db.sequences
+    doc = await sequence_collection.find_one_and_update(
+        {'_id': sequence_name},
+        {'$inc': {'sequence_value': 1}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
     )
-    return str(seq['sequence_value']).zfill(2)
+    return doc['sequence_value']
 
-async def send_sudo_log(text):
-    for uid in SUDO_USER_IDS:
-        try: await app.send_message(uid, text)
-        except: pass
 
-# --- BACKGROUND TASK ---
-async def scheduler():
-    while True:
-        now = datetime.now().strftime("%H:%M")
-        if now == GOOD_MORNING_TIME:
-            await send_sudo_log("Good morning! ☀️")
-            await asyncio.sleep(61)
-        elif now == GOOD_NIGHT_TIME:
-            await send_sudo_log("Good night! 🌙")
-            await asyncio.sleep(61)
-        elif now == NEW_CHARACTER_TIME:
-            try: await app.send_message(CHARA_CHANNEL_ID, "📢 New character coming soon!")
-            except: pass
-            await asyncio.sleep(61)
-        await asyncio.sleep(30)
+def pack(prefix: str, *parts) -> str:
+    """
+    Pack callback_data safely.
+    Uses '|' as separator so emoji/space in parts don't break splits.
+    Example: pack("set_rarity", "🟡 Legendary", "42") → "set_rarity|🟡 Legendary|42"
+    """
+    return prefix + "|" + "|".join(str(p) for p in parts)
 
-# --- START & ADMIN PANEL ---
+
+def unpack(data: str, prefix: str):
+    """
+    Unpack callback_data packed with pack().
+    Returns list of parts after the prefix.
+    """
+    return data[len(prefix) + 1:].split("|")
+
+
+# ─────────────────────────────────────────────
+#  /start
+# ─────────────────────────────────────────────
 @app.on_message(filters.command("start") & filters.private)
 async def start(client, message):
-    if str(message.from_user.id) in sudo_users:
-        sudo_user = await app.get_users(message.from_user.id)
-        sudo_user_first_name = sudo_user.first_name
-        await message.reply_text(f"Hello [{sudo_user_first_name}](tg://user?id={message.from_user.id})!", reply_markup=ReplyKeyboardMarkup(
+    if not is_sudo(message.from_user.id):
+        return
+    user = await app.get_users(message.from_user.id)
+    await message.reply_text(
+        f"Hello [{user.first_name}](tg://user?id={message.from_user.id})!",
+        reply_markup=ReplyKeyboardMarkup(
             [[KeyboardButton("⚙ Admin panel ⚙")]],
-            resize_keyboard=True
-        ))
+            resize_keyboard=True,
+        ),
+    )
 
-@app.on_message(filters.regex("^⚙ Admin panel ⚙$") & filters.private)
-async def panel_handler(_, msg):
-    if msg.from_user.id not in SUDO_USER_IDS: return
-    total_w = await collection.count_documents({})
-    total_a = len(await collection.distinct("anime"))
-    total_h = await user_collection.count_documents({})
-    
+
+# ─────────────────────────────────────────────
+#  ADMIN PANEL
+# ─────────────────────────────────────────────
+@app.on_message(filters.text & filters.private & filters.regex(r"^⚙ Admin panel ⚙$"))
+async def admin_panel(client, message):
+    if not is_sudo(message.from_user.id):
+        return await message.reply_text("You are not authorized.")
+
+    total_waifus = await collection.count_documents({})
+    total_animes = len(await collection.distinct("anime"))
+    total_harems = await user_collection.count_documents({})
+
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🆕 Add Character", callback_data="add_waifu"),
-         InlineKeyboardButton("Add Anime 🆕", callback_data="add_anime")],
-        [InlineKeyboardButton("👾 Anime List", switch_inline_query_current_chat="choose_anime ")]
+        [
+            InlineKeyboardButton("🆕 Add Character", callback_data="add_waifu"),
+            InlineKeyboardButton("Add Anime 🆕", callback_data="add_anime"),
+        ],
+        [InlineKeyboardButton("👾 Anime List", switch_inline_query_current_chat="choose_anime ")],
     ])
-    await msg.reply_text(f"Admin Panel:\n\nTotal Waifus: {total_w}\nTotal Animes: {total_a}\nTotal Harems: {total_h}", reply_markup=kb)
+    await message.reply_text(
+        f"**Admin Panel**\n\n"
+        f"Total Waifus: {total_waifus}\n"
+        f"Total Animes: {total_animes}\n"
+        f"Total Harems: {total_harems}",
+        reply_markup=kb,
+    )
 
-# --- EDIT COMMAND ---
+
+# ─────────────────────────────────────────────
+#  /edit COMMAND
+# ─────────────────────────────────────────────
 @app.on_message(filters.command("edit") & filters.private)
-async def edit_waifu(_, msg):
-    if msg.from_user.id not in SUDO_USER_IDS: return
-    if len(msg.command) < 2: return await msg.reply("Usage: /edit <character_id>")
-    
-    char = await collection.find_one({"id": msg.command[1]})
-    if not char: return await msg.reply("Character not found!")
+async def edit_waifu_command(client, message):
+    if not is_sudo(message.from_user.id):
+        return await message.reply_text("You are not authorized.")
+    if len(message.command) < 2:
+        return await message.reply_text("Usage: /edit <waifu_id>")
+
+    waifu_id = message.command[1]
+    waifu = await collection.find_one({"id": waifu_id})
+    if not waifu:
+        return await message.reply_text("Character not found.")
 
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🧩 Rename", callback_data=f"edit_rename_{char['id']}")],
-        [InlineKeyboardButton("⛱️ Change Image", callback_data=f"edit_image_{char['id']}")],
-        [InlineKeyboardButton("⛩️ Change Rarity", callback_data=f"edit_rarity_{char['id']}")],
-        [InlineKeyboardButton("🎉 Edit Event", callback_data=f"edit_event_{char['id']}")],
-        [InlineKeyboardButton("📢 Reset", callback_data=f"edit_reset_{char['id']}")],
-        [InlineKeyboardButton("🗑️ Remove", callback_data=f"edit_remove_{char['id']}")]
+        [InlineKeyboardButton("🧩 Rename Character",  callback_data=pack("rename_waifu",  waifu_id))],
+        [InlineKeyboardButton("⛱️ Change Image",      callback_data=pack("change_image",  waifu_id))],
+        [InlineKeyboardButton("⛩️ Change Rarity",     callback_data=pack("change_rarity", waifu_id))],
+        [InlineKeyboardButton("🎉 Edit Event",         callback_data=pack("change_event",  waifu_id))],
+        [InlineKeyboardButton("📢 Reset Character",   callback_data=pack("reset_waifu",   waifu_id))],
+        [InlineKeyboardButton("🗑️ Remove Character",  callback_data=pack("remove_waifu",  waifu_id))],
     ])
-    await msg.reply_photo(char["img_url"], caption=f"ID: {char['id']}\nName: {char['name']}\nAnime: {char['anime']}\nRarity: {char['rarity']}", reply_markup=kb)
+    await message.reply_photo(
+        photo=waifu["img_url"],
+        caption=f"👧 **Name:** {waifu['name']}\n🎥 **Anime:** {waifu['anime']}\n🏷 **Rarity:** {waifu['rarity']}",
+        reply_markup=kb,
+    )
 
-# --- CALLBACK ROUTER ---
-@app.on_callback_query()
-async def callback_router(_, cb):
-    uid = cb.from_user.id
-    data = cb.data
 
-    # Add Anime
-    if data == "add_anime":
-        user_states[uid] = {"state": "wait_anime_name"}
-        await cb.message.edit_text("Enter new Anime name:")
+# ─────────────────────────────────────────────
+#  ADD ANIME flow
+# ─────────────────────────────────────────────
+@app.on_callback_query(filters.regex(r"^add_anime$"))
+async def add_anime_callback(client, cb):
+    if not is_sudo(cb.from_user.id):
+        return await cb.answer("Not authorized.", show_alert=True)
+    user_states[cb.from_user.id] = {"state": "adding_anime"}
+    await cb.message.edit_text("Please enter the name of the anime you want to add:")
 
-    # Add Waifu Start
-    elif data == "add_waifu":
-        await cb.message.edit_text("Search and select anime first:", reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("👾 Search Anime", switch_inline_query_current_chat="choose_anime ")]
-        ]))
 
-    # Selection from Inline Search
-    elif data.startswith("add_waifu_"):
-        anime = data.split('_', 2)[-1]
-        user_states[uid] = {"state": "wait_waifu_name", "anime": anime}
-        await cb.message.edit_text(f"Anime: {anime}\nNow send Character Name:")
+# ─────────────────────────────────────────────
+#  ADD CHARACTER flow  (step 1 — pick anime)
+# ─────────────────────────────────────────────
+@app.on_callback_query(filters.regex(r"^add_waifu$"))
+async def add_waifu_callback(client, cb):
+    if not is_sudo(cb.from_user.id):
+        return await cb.answer("Not authorized.", show_alert=True)
+    await cb.message.edit_text(
+        "Choose an anime to save the character in:",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("👾 Search Anime", switch_inline_query_current_chat="choose_anime ")],
+            [InlineKeyboardButton("⚔️ Cancel", callback_data="cancel_add_waifu")],
+        ]),
+    )
 
-    # Edit Callbacks
-    elif data.startswith("edit_"):
-        parts = data.split('_')
-        action, cid = parts[1], parts[2]
-        
-        if action == "rename":
-            user_states[uid] = {"state": "renaming", "cid": cid}
-            await cb.message.edit_text(f"Send new name for ID {cid}:")
-        elif action == "image":
-            user_states[uid] = {"state": "changing_img", "cid": cid}
-            await cb.message.edit_text(f"Send new photo for ID {cid}:")
-        elif action == "rarity":
-            btns = [[InlineKeyboardButton(r, callback_data=f"set_rarity_{r}_{cid}")] for r in rarity_emojis.keys()]
-            await cb.message.edit_text("Select new rarity:", reply_markup=InlineKeyboardMarkup(btns))
-        elif action == "event":
-            btns = [[InlineKeyboardButton(e, callback_data=f"set_event_{e}_{cid}")] for e in event_emojis.keys()]
-            btns.append([InlineKeyboardButton("Skip", callback_data=f"set_event_none_{cid}")])
-            await cb.message.edit_text("Select Event:", reply_markup=InlineKeyboardMarkup(btns))
-        elif action == "reset":
-            await collection.update_one({"id": cid}, {"$set": {"global_grabbed": 0}})
-            await cb.answer("✅ Reset Done!", show_alert=True)
-        elif action == "remove":
-            await collection.delete_one({"id": cid})
-            await cb.message.edit_text(f"✅ Character {cid} removed!")
 
-    # Setting Rarity/Event during Add/Edit
-    elif data.startswith("set_rarity_"):
-        _, _, rar, cid = data.split('_')
-        await collection.update_one({"id": cid}, {"$set": {"rarity": rar}})
-        await cb.message.edit_text(f"✅ Rarity updated to {rar}")
+# Triggered when user taps "Add Character" from inline result
+@app.on_callback_query(filters.regex(r"^add_waifu\|"))
+async def choose_anime_callback(client, cb):
+    if not is_sudo(cb.from_user.id):
+        return await cb.answer("Not authorized.", show_alert=True)
+    selected_anime = unpack(cb.data, "add_waifu")[0]
+    user_states[cb.from_user.id] = {
+        "state": "awaiting_waifu_name",
+        "anime": selected_anime,
+        "name": None,
+        "rarity": None,
+        "event_emoji": "",
+        "event_name": "",
+    }
+    await app.send_message(
+        chat_id=cb.from_user.id,
+        text=f"You've selected **{selected_anime}**.\nNow please enter the new character's name:",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="cancel_add_waifu")]]),
+    )
 
-    elif data.startswith("set_event_"):
-        _, _, evt, cid = data.split('_')
-        emoji = event_emojis.get(evt, "") if evt != "none" else ""
-        await collection.update_one({"id": cid}, {"$set": {"event_name": evt if evt != "none" else "", "event_emoji": emoji}})
-        await cb.message.edit_text(f"✅ Event updated to {evt}")
 
-    # Add Waifu Rarity Choice
-    elif data.startswith("choice_rarity_"):
-        rar = data.split('_')[-1]
-        user_states[uid].update({"rarity": rar, "state": "wait_event_choice"})
-        btns = [[InlineKeyboardButton(e, callback_data=f"choice_event_{e}")] for e in event_emojis.keys()]
-        btns.append([InlineKeyboardButton("Skip", callback_data="choice_event_none")])
-        await cb.message.edit_text("Choose Event:", reply_markup=InlineKeyboardMarkup(btns))
+@app.on_callback_query(filters.regex(r"^cancel_add_waifu$"))
+async def cancel_add_waifu_callback(client, cb):
+    user_states.pop(cb.from_user.id, None)
+    await cb.message.edit_text("Operation cancelled.")
 
-    # Add Waifu Event Choice
-    elif data.startswith("choice_event_"):
-        evt = data.split('_')[-1]
-        emoji = event_emojis.get(evt, "") if evt != "none" else ""
-        user_states[uid].update({"event_name": evt if evt != "none" else "", "event_emoji": emoji, "state": "wait_photo"})
-        await cb.message.edit_text(f"Event: {evt}\nNow send the Photo/Image:")
 
-# --- TEXT HANDLER ---
-@app.on_message(filters.private & filters.text & ~filters.command(["start", "edit"]))
-async def text_processor(_, msg):
-    uid = msg.from_user.id
-    if uid not in user_states: return
-    state = user_states[uid].get("state")
-    text = msg.text.strip()
+# ─────────────────────────────────────────────
+#  INLINE QUERY — anime search
+# ─────────────────────────────────────────────
+@app.on_inline_query()
+async def search_anime(client, inline_query):
+    if not is_sudo(inline_query.from_user.id):
+        return
 
-    if state == "wait_anime_name":
-        await collection.insert_one({"anime": text}) # Custom anime logic if needed
-        await msg.reply(f"✅ Anime '{text}' added!")
-        user_states.pop(uid)
+    query = inline_query.query.strip()
+    if not query.lower().startswith("choose_anime"):
+        return
 
-    elif state == "wait_waifu_name":
-        user_states[uid].update({"name": text, "state": "wait_rarity_choice"})
-        btns = [[InlineKeyboardButton(r, callback_data=f"choice_rarity_{r}")] for r in rarity_emojis.keys()]
-        await msg.reply("Select Rarity:", reply_markup=InlineKeyboardMarkup(btns))
+    search_term = query[len("choose_anime"):].strip()
 
-    elif state == "renaming":
-        cid = user_states[uid]["cid"]
-        await collection.update_one({"id": cid}, {"$set": {"name": text}})
-        await msg.reply(f"✅ ID {cid} renamed to {text}")
-        user_states.pop(uid)
+    anime_results = await collection.aggregate([
+        {"$match": {"anime": {"$regex": search_term, "$options": "i"}}},
+        {"$group": {"_id": "$anime", "waifu_count": {"$sum": 1}}},
+        {"$limit": 10},
+    ]).to_list(length=None)
 
-# --- PHOTO HANDLER ---
-@app.on_message(filters.private & filters.photo)
-async def photo_processor(_, msg):
-    uid = msg.from_user.id
-    if uid not in user_states: return
-    state = user_states[uid].get("state")
+    results = []
+    for anime in anime_results:
+        title = anime["_id"]
+        count = anime["waifu_count"]
+        # Truncate title so callback_data stays within Telegram 64-byte limit
+        title_short = title[:25]
+        results.append(
+            InlineQueryResultArticle(
+                title=title,
+                description=f"Characters: {count}",
+                input_message_content=InputTextMessageContent(
+                    f"✏ **Title:** {title}\n🏷 **Characters:** {count}"
+                ),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("➕ Add Character",  callback_data=pack("add_waifu",        title_short))],
+                    [InlineKeyboardButton("✏️ Rename Anime",   callback_data=pack("rename_anime",     title_short))],
+                    [InlineKeyboardButton("🗑️ Remove Anime",   callback_data=pack("remove_anime",     title_short))],
+                    [InlineKeyboardButton("👁 View Characters", callback_data=pack("view_characters", title_short))],
+                ]),
+            )
+        )
 
-    if state == "wait_photo":
-        data = user_states[uid]
-        new_id = await get_next_id()
-        char_data = {
-            "id": new_id, "name": data["name"], "anime": data["anime"],
-            "rarity": data["rarity"], "img_url": msg.photo.file_id,
-            "event_name": data.get("event_name", ""), "event_emoji": data.get("event_emoji", ""),
-            "global_grabbed": 0
-        }
-        await collection.insert_one(char_data)
-        
-        caption = f"✅ Character Added!\nID: {new_id}\nName: {data['name']}\nAnime: {data['anime']}\nRarity: {data['rarity']}"
-        await msg.reply(caption)
-        await app.send_photo(CHARA_CHANNEL_ID, msg.photo.file_id, caption=caption)
-        user_states.pop(uid)
+    await inline_query.answer(results, cache_time=1)
 
-    elif state == "changing_img":
-        cid = user_states[uid]["cid"]
-        await collection.update_one({"id": cid}, {"$set": {"img_url": msg.photo.file_id}})
-        await msg.reply(f"✅ Image updated for ID {cid}")
-        user_states.pop(uid)
 
-# --- LOGS RETRIEVAL COMMAND ---
-@app.on_message(filters.command("getlogs") & filters.user(SUDO_USER_IDS))
-async def get_logs_file(_, msg):
+# ─────────────────────────────────────────────
+#  VIEW / RENAME / REMOVE ANIME callbacks
+# ─────────────────────────────────────────────
+@app.on_callback_query(filters.regex(r"^view_characters\|"))
+async def view_characters_callback(client, cb):
+    anime_name = unpack(cb.data, "view_characters")[0]
+    waifus = await collection.find({"anime": anime_name}).to_list(length=None)
+    if waifus:
+        lines = "\n".join(
+            f"• {w.get('name','?')}  ({w.get('rarity','?')})" for w in waifus
+        )
+        await cb.message.edit_text(f"**Characters in '{anime_name}':**\n\n{lines}")
+    else:
+        await cb.message.edit_text("No characters found for this anime.")
+
+
+@app.on_callback_query(filters.regex(r"^rename_anime\|"))
+async def rename_anime_callback(client, cb):
+    if not is_sudo(cb.from_user.id):
+        return await cb.answer("Not authorized.", show_alert=True)
+    selected_anime = unpack(cb.data, "rename_anime")[0]
+    user_states[cb.from_user.id] = {"state": "renaming_anime", "anime": selected_anime}
+    await app.send_message(
+        chat_id=cb.from_user.id,
+        text=f"Enter the new name for anime **'{selected_anime}'**:",
+    )
+
+
+@app.on_callback_query(filters.regex(r"^remove_anime\|"))
+async def remove_anime_callback(client, cb):
+    if not is_sudo(cb.from_user.id):
+        return await cb.answer("Not authorized.", show_alert=True)
+    selected_anime = unpack(cb.data, "remove_anime")[0]
+    user_states[cb.from_user.id] = {"state": "confirming_removal", "anime": selected_anime}
+    await app.send_message(
+        chat_id=cb.from_user.id,
+        text=f"Are you sure you want to delete **'{selected_anime}'** and all its characters?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes", callback_data="confirm_remove_anime")],
+            [InlineKeyboardButton("❌ No",  callback_data="cancel_remove_anime")],
+        ]),
+    )
+
+
+@app.on_callback_query(filters.regex(r"^confirm_remove_anime$"))
+async def confirm_remove_anime_callback(client, cb):
+    data = user_states.get(cb.from_user.id, {})
+    if data.get("state") != "confirming_removal":
+        return
+    anime = data["anime"]
+    await collection.delete_many({"anime": anime})
+    await cb.message.edit_text(f"Anime **'{anime}'** and all its characters have been deleted.")
+    await app.send_message(CHARA_CHANNEL_ID, f"📢 Sudo deleted anime: **{anime}**")
+    await app.send_message(SUPPORT_CHAT,     f"📢 Sudo deleted anime: **{anime}**")
+    user_states.pop(cb.from_user.id, None)
+
+
+@app.on_callback_query(filters.regex(r"^cancel_remove_anime$"))
+async def cancel_remove_anime_callback(client, cb):
+    user_states.pop(cb.from_user.id, None)
+    await cb.message.edit_text("Operation cancelled.")
+
+
+# ─────────────────────────────────────────────
+#  EDIT CHARACTER callbacks
+# ─────────────────────────────────────────────
+
+# --- Rename ---
+@app.on_callback_query(filters.regex(r"^rename_waifu\|"))
+async def rename_waifu_callback(client, cb):
+    waifu_id = unpack(cb.data, "rename_waifu")[0]
+    user_states[cb.from_user.id] = {"state": "renaming_waifu", "waifu_id": waifu_id}
+    await cb.message.edit_text(f"Enter the new name for character ID **{waifu_id}**:")
+
+
+# --- Change Image ---
+@app.on_callback_query(filters.regex(r"^change_image\|"))
+async def change_image_callback(client, cb):
+    waifu_id = unpack(cb.data, "change_image")[0]
+    user_states[cb.from_user.id] = {"state": "changing_image", "waifu_id": waifu_id}
+    await cb.message.edit_text(
+        f"Send the new image for character ID **{waifu_id}**:",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="cancel_change_image")]]),
+    )
+
+
+@app.on_callback_query(filters.regex(r"^cancel_change_image$"))
+async def cancel_change_image_callback(client, cb):
+    user_states.pop(cb.from_user.id, None)
+    await cb.message.edit_text("Operation cancelled.")
+
+
+# --- Change Rarity ---
+@app.on_callback_query(filters.regex(r"^change_rarity\|"))
+async def change_rarity_callback(client, cb):
+    waifu_id = unpack(cb.data, "change_rarity")[0]
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton(r, callback_data=pack("set_rarity", r, waifu_id))]
+        for r in rarity_emojis
+    ])
+    await cb.message.edit_text("Choose a new rarity:", reply_markup=kb)
+
+
+@app.on_callback_query(filters.regex(r"^set_rarity\|"))
+async def set_rarity_callback(client, cb):
     try:
-        await msg.reply_document("bot_logs.txt", caption="📄 Current Bot Logs")
+        new_rarity, waifu_id = unpack(cb.data, "set_rarity")
+        waifu = await collection.find_one_and_update(
+            {"id": waifu_id},
+            {"$set": {"rarity": new_rarity}},
+            return_document=ReturnDocument.AFTER,
+        )
+        if not waifu:
+            return await cb.answer("Character not found.", show_alert=True)
+
+        caption = (
+            f"🏅 **Rarity Update**\n"
+            f"🆔 ID: {waifu['id']}\n"
+            f"👤 Name: {waifu['name']}\n"
+            f"🎌 Anime: {waifu['anime']}\n"
+            f"🎖 New Rarity: {new_rarity}"
+        )
+        await app.send_photo(cb.from_user.id, photo=waifu["img_url"], caption=caption)
+        await app.send_photo(CHARA_CHANNEL_ID,  photo=waifu["img_url"], caption=caption)
+        await app.send_photo(SUPPORT_CHAT,       photo=waifu["img_url"], caption=caption)
+        await cb.message.edit_text(f"✅ Rarity changed to **{new_rarity}** successfully.")
     except Exception as e:
-        await msg.reply(f"Error getting logs: {e}")
+        logger.error(f"set_rarity_callback: {e}", exc_info=True)
+        await cb.answer("An error occurred.", show_alert=True)
 
-# --- MAIN RUNNER ---
-async def start_bot():
-    await app.start()
-    asyncio.create_task(scheduler())
-    await send_sudo_log("🚨 Bot Restarted & Ready!")
-    print("Bot is running...")
-    await asyncio.idle()
 
-if __name__ == "__main__":
-    app.run(start_bot())
- 
+# --- Change Event ---
+@app.on_callback_query(filters.regex(r"^change_event\|"))
+async def change_event_callback(client, cb):
+    waifu_id = unpack(cb.data, "change_event")[0]
+    user_states[cb.from_user.id] = {"state": "changing_event", "waifu_id": waifu_id}
+    kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(e, callback_data=pack("set_new_event", e, waifu_id))] for e in event_emojis]
+        + [[InlineKeyboardButton("Skip Event", callback_data=pack("set_new_event", "none", waifu_id))]]
+    )
+    await cb.message.edit_text("Choose a new event (or skip):", reply_markup=kb)
+
+
+@app.on_callback_query(filters.regex(r"^set_new_event\|"))
+async def set_new_event_callback(client, cb):
+    try:
+        evt, waifu_id = unpack(cb.data, "set_new_event")
+        if evt == "none":
+            await collection.update_one({"id": waifu_id}, {"$set": {"event_emoji": "", "event_name": ""}})
+            await cb.message.edit_text(f"✅ Event cleared for ID **{waifu_id}**.")
+        else:
+            emoji = event_emojis.get(evt, "")
+            await collection.update_one({"id": waifu_id}, {"$set": {"event_emoji": emoji, "event_name": evt}})
+            await cb.message.edit_text(f"✅ Event updated to **{evt}** for ID **{waifu_id}**.")
+        user_states.pop(cb.from_user.id, None)
+    except Exception as e:
+        logger.error(f"set_new_event_callback: {e}", exc_info=True)
+        await cb.message.edit_text("An error occurred while updating the event.")
+
+
+# --- Reset ---
+@app.on_callback_query(filters.regex(r"^reset_waifu\|"))
+async def reset_waifu_callback(client, cb):
+    waifu_id = unpack(cb.data, "reset_waifu")[0]
+    user_states[cb.from_user.id] = {"state": "confirming_reset", "waifu_id": waifu_id}
+    await cb.message.edit_text(
+        f"Reset character ID **{waifu_id}** global_grabbed to 0?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes", callback_data=pack("confirm_reset_waifu", waifu_id))],
+            [InlineKeyboardButton("❌ No",  callback_data="cancel_reset_waifu")],
+        ]),
+    )
+
+
+@app.on_callback_query(filters.regex(r"^confirm_reset_waifu\|"))
+async def confirm_reset_waifu_callback(client, cb):
+    waifu_id = unpack(cb.data, "confirm_reset_waifu")[0]
+    waifu = await collection.find_one_and_update(
+        {"id": waifu_id},
+        {"$set": {"global_grabbed": 0}},
+        return_document=ReturnDocument.AFTER,
+    )
+    if waifu:
+        await cb.message.edit_text(f"✅ Character **{waifu_id}** reset successfully.")
+        await app.send_photo(
+            CHARA_CHANNEL_ID,
+            photo=waifu["img_url"],
+            caption=f"🔄 **Reset Notice**\nID: {waifu_id} | {waifu['name']} ({waifu['anime']}) reset.",
+        )
+    else:
+        await cb.message.edit_text("Failed to reset — character not found.")
+    user_states.pop(cb.from_user.id, None)
+
+
+@app.on_callback_query(filters.regex(r"^cancel_reset_waifu$"))
+async def cancel_reset_waifu_callback(client, cb):
+    user_states.pop(cb.from_user.id, None)
+    await cb.message.edit_text("Operation cancelled.")
+
+
+# --- Remove ---
+@app.on_callback_query(filters.regex(r"^remove_waifu\|"))
+async def remove_waifu_callback(client, cb):
+    waifu_id = unpack(cb.data, "remove_waifu")[0]
+    user_states[cb.from_user.id] = {"state": "confirming_waifu_removal", "waifu_id": waifu_id}
+    await cb.message.edit_text(
+        f"Remove character ID **{waifu_id}**?",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Yes", callback_data="confirm_remove_waifu")],
+            [InlineKeyboardButton("❌ No",  callback_data="cancel_remove_waifu")],
+        ]),
+    )
+
+
+@app.on_callback_query(filters.regex(r"^confirm_remove_waifu$"))
+async def confirm_remove_waifu_callback(client, cb):
+    data = user_states.get(cb.from_user.id, {})
+    if data.get("state") != "confirming_waifu_removal":
+        return
+    waifu_id = data["waifu_id"]
+    waifu = await collection.find_one_and_delete({"id": waifu_id})
+    if waifu:
+        caption = (
+            f"🗑️ **Character Removed**\n"
+            f"👤 Name: {waifu['name']}\n"
+            f"🎌 Anime: {waifu['anime']}"
+        )
+        await cb.message.edit_text(f"✅ Character **{waifu_id}** removed.")
+        await app.send_photo(CHARA_CHANNEL_ID, photo=waifu["img_url"], caption=caption)
+        await app.send_photo(SUPPORT_CHAT,      photo=waifu["img_url"], caption=caption)
+    else:
+        await cb.message.edit_text("Character not found.")
+    user_states.pop(cb.from_user.id, None)
+
+
+@app.on_callback_query(filters.regex(r"^cancel_remove_waifu$"))
+async def cancel_remove_waifu_callback(client, cb):
+    user_states.pop(cb.from_user.id, None)
+    await cb.message.edit_text("Operation cancelled.")
+
+
+# ─────────────────────────────────────────────
+#  ADD CHARACTER — rarity & event selection
+# ─────────────────────────────────────────────
+@app.on_callback_query(filters.regex(r"^select_rarity\|"))
+async def select_rarity_callback(client, cb):
+    selected_rarity = unpack(cb.data, "select_rarity")[0]
+    if cb.from_user.id not in user_states:
+        return await cb.answer("Session expired. Start again.", show_alert=True)
+    user_states[cb.from_user.id]["rarity"] = selected_rarity
+    user_states[cb.from_user.id]["state"] = "selecting_event"
+
+    kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(e, callback_data=pack("set_event", e))] for e in event_emojis]
+        + [[InlineKeyboardButton("Skip Event", callback_data="set_event|none")]]
+    )
+    await cb.message.edit_text("Choose an event (or skip):", reply_markup=kb)
+
+
+@app.on_callback_query(filters.regex(r"^set_event\|"))
+async def set_event_callback(client, cb):
+    evt = unpack(cb.data, "set_event")[0]
+    if cb.from_user.id not in user_states:
+        return await cb.answer("Session expired. Start again.", show_alert=True)
+    if evt == "none":
+        user_states[cb.from_user.id]["event_emoji"] = ""
+        user_states[cb.from_user.id]["event_name"] = ""
+    else:
+        user_states[cb.from_user.id]["event_emoji"] = event_emojis.get(evt, "")
+        user_states[cb.from_user.id]["event_name"] = evt
+    user_states[cb.from_user.id]["state"] = "awaiting_waifu_image"
+    await cb.message.edit_text("Now send the character's image/photo:")
+
+
+# ─────────────────────────────────────────────
+#  TEXT MESSAGE HANDLER  (single, unified)
+# ─────────────────────────────────────────────
+@app.on_message(filters.private & filters.text & ~filters.regex(r"^⚙ Admin panel ⚙$"))
+async def receive_text_message(client, message):
+    # Ignore bot commands — let command handlers deal with them
+    if message.text and message.text.startswith("/"):
+        return
+
+    uid = message.from_user.id
+    data = user_states.get(uid)
+    if not data:
+        return
+
+    state = data.get("state")
+    text = message.text.strip()
+
+    # ── Adding anime ──
+    if state == "adding_anime":
+        existing = await collection.find_one({"anime": text})
+        if existing:
+            await message.reply_text(f"Anime **'{text}'** already exists.")
+        else:
+            await message.reply_text(f"✅ Anime **'{text}'** noted! Use Add Character to add characters to it.")
+        user_states.pop(uid, None)
+
+    # ── Character name ──
+    elif state == "awaiting_waifu_name":
+        user_states[uid]["name"] = text
+        user_states[uid]["state"] = "awaiting_waifu_rarity"
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton(r, callback_data=pack("select_rarity", r))]
+            for r in rarity_emojis
+        ])
+        await message.reply_text("Choose the character's rarity:", reply_markup=kb)
+
+    # ── Rename anime ──
+    elif state == "renaming_anime":
+        old = data["anime"]
+        await collection.update_many({"anime": old}, {"$set": {"anime": text}})
+        await message.reply_text(f"✅ Anime renamed from **'{old}'** to **'{text}'**.")
+        await app.send_message(CHARA_CHANNEL_ID, f"#RENAMEANIME\n'{old}' → '{text}'")
+        await app.send_message(SUPPORT_CHAT,     f"#RENAMEANIME\n'{old}' → '{text}'")
+        user_states.pop(uid, None)
+
+    # ── Rename character ──
+    elif state == "renaming_waifu":
+        waifu_id = data["waifu_id"]
+        waifu = await collection.find_one({"id": waifu_id})
+        if waifu:
+            old_name = waifu["name"]
+            await collection.update_one({"id": waifu_id}, {"$set": {"name": text}})
+            await message.reply_text(f"✅ Character renamed to **'{text}'**.")
+            caption = (
+                f"#CHANGEDNAME\n"
+                f"By: {message.from_user.first_name}\n"
+                f"'{old_name}' → '{text}'"
+            )
+            await app.send_photo(CHARA_CHANNEL_ID, photo=waifu["img_url"], caption=caption)
+            await app.send_photo(SUPPORT_CHAT,      photo=waifu["img_url"], caption=caption)
+        else:
+            await message.reply_text("Character not found.")
+        user_states.pop(uid, None)
+
+
+# ─────────────────────────────────────────────
+#  PHOTO HANDLER
+# ─────────────────────────────────────────────
+@app.on_message(filters.private & filters.photo)
+async def receive_photo(client, message):
+    uid = message.from_user.id
+    data = user_states.get(uid)
+    if not data:
+        return
+
+    state = data.get("state")
+
+    # ── Save new character ──
+    if state == "awaiting_waifu_image":
+        try:
+            photo_id = message.photo.file_id
+            waifu_id = str(await get_next_sequence_number('character_id')).zfill(2)
+            character = {
+                'img_url':     photo_id,
+                'name':        data["name"],
+                'anime':       data["anime"],
+                'rarity':      data["rarity"],
+                'id':          waifu_id,
+                'event_emoji': data.get("event_emoji", ""),
+                'event_name':  data.get("event_name",  ""),
+                'global_grabbed': 0,
+            }
+            await collection.insert_one(character)
+
+            caption = (
+                f"OwO! New character!\n\n"
+                f"**{data['anime']}**\n"
+                f"`{waifu_id}`: {data['name']} {character['event_emoji']}\n"
+                f"(RARITY: {data['rarity']})\n"
+                f"{character['event_name']}\n\n"
+                f"➼ Added by: [{message.from_user.first_name}](tg://user?id={uid})"
+            )
+            await message.reply_text(f"✅ Character **{data['name']}** added! ID: `{waifu_id}`")
+            await app.send_photo(CHARA_CHANNEL_ID, photo=photo_id, caption=caption)
+            await app.send_photo(SUPPORT_CHAT,      photo=photo_id, caption=caption)
+            user_states.pop(uid, None)
+        except Exception as e:
+            logger.error(f"receive_photo (add): {e}", exc_info=True)
+            await message.reply_text("An error occurred while saving the character.")
+
+    # ── Change existing image ──
+    elif state == "changing_image":
+        try:
+            waifu_id = data["waifu_id"]
+            new_img = message.photo.file_id
+            waifu = await collection.find_one_and_update(
+                {"id": waifu_id},
+                {"$set": {"img_url": new_img}},
+                return_document=ReturnDocument.AFTER,
+            )
+            if waifu:
+                caption = (
+                    f"🖼 Image Updated!\n"
+                    f"🆔 ID: {waifu_id}\n"
+                    f"👤 Name: {waifu['name']}\n"
+                    f"🎌 Anime: {waifu['anime']}"
+                )
+                await message.reply_text("✅ Image updated successfully.")
+                await app.send_photo(CHARA_CHANNEL_ID, photo=new_img, caption=caption)
+                await app.send_photo(SUPPORT_CHAT,      photo=new_img, caption=caption)
+            else:
+                await message.reply_text("Character not found.")
+            user_states.pop(uid, None)
+        except Exception as e:
+            logger.error(f"receive_photo (change_image): {e}", exc_info=True)
+            await message.reply_text("An error occurred while updating the image.")
+            
