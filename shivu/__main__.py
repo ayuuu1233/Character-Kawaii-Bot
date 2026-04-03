@@ -329,7 +329,7 @@ async def guess(update: Update, context: CallbackContext) -> None:
     if chat_id not in last_characters:
         return
 
-    # Check if the character has already been guessed
+# Check if the character has already been guessed
 if chat_id in first_correct_guesses:
     correct_guess_user = first_correct_guesses[chat_id]['user']
     seized_character = first_correct_guesses[chat_id]['character']
