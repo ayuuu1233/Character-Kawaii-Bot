@@ -331,17 +331,23 @@ async def guess(update: Update, context: CallbackContext) -> None:
 
     # Check if the character has already been guessed
     if chat_id in first_correct_guesses:
-        correct_guess_user = first_correct_guesses[chat_id]['user']
-        seized_character = first_correct_guesses[chat_id]['character']
-        time_guessed = first_correct_guesses[chat_id]['time']
+    correct_guess_user = first_correct_guesses[chat_id]['user']
+    seized_character = first_correct_guesses[chat_id]['character']
+    time_guessed = first_correct_guesses[chat_id]['time']
+    
+    
+    if correct_guess_user and hasattr(correct_guess_user, "id"):
         user_link = f'<a href="tg://user?id={correct_guess_user.id}">{correct_guess_user.first_name}</a>'
-        await update.message.reply_text(
-            f'🌟 This character <b>{kawaiied_character}</b> has already been kawaiied by {user_link}!\n'
-            f'⏱️ Guessed at: <b>{time_guessed}</b>\n'
-            f'🍵 Wait for the next character to spawn... 🌌',
-            parse_mode='HTML'
-        )
-        return
+    else:
+        user_link = "Unknown User"
+        
+    await update.message.reply_text(
+        f'🌟 This character <b>{kawaiied_character}</b> has already been kawaiied by {user_link}!\n'
+        f'⏱️ Guessed at: <b>{time_guessed}</b>\n'
+        f'🍵 Wait for the next character to spawn... 🌌',
+        parse_mode='HTML'
+    )
+    return
 
     # Retrieve the user's guess
     guess = ' '.join(context.args).lower() if context.args else ''
@@ -379,7 +385,7 @@ async def guess(update: Update, context: CallbackContext) -> None:
             first_correct_guesses[chat_id] = {'user': None, 'character': None, 'time': None}
 
 
-        if user_id not in [user.id for user in first_correct_guesses[chat_id]]:
+        if user_id not in first_correct_guesses[chat_id]:
             first_correct_guesses[chat_id].append(update.effective_user)
 
             # Update user database
