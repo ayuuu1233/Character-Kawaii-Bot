@@ -330,17 +330,16 @@ async def guess(update: Update, context: CallbackContext) -> None:
         return
 
     # Check if the character has already been guessed
-    if chat_id in first_correct_guesses:
+if chat_id in first_correct_guesses:
     correct_guess_user = first_correct_guesses[chat_id]['user']
     seized_character = first_correct_guesses[chat_id]['character']
     time_guessed = first_correct_guesses[chat_id]['time']
     
-    
-    if correct_guess_user and hasattr(correct_guess_user, "id"):
+    if correct_guess_user:  # <- proper indentation
         user_link = f'<a href="tg://user?id={correct_guess_user.id}">{correct_guess_user.first_name}</a>'
     else:
         user_link = "Unknown User"
-        
+
     await update.message.reply_text(
         f'🌟 This character <b>{kawaiied_character}</b> has already been kawaiied by {user_link}!\n'
         f'⏱️ Guessed at: <b>{time_guessed}</b>\n'
