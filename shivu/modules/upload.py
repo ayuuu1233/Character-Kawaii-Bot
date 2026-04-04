@@ -60,7 +60,6 @@ user_states = {}
 #  HELPERS
 # ─────────────────────────────────────────────
 def is_sudo(user_id: int) -> bool:
-    """Check if user is a sudo user (handles both int and str stored IDs)."""
     return str(user_id) in sudo_users or user_id in sudo_users
 
 
@@ -75,21 +74,19 @@ async def get_next_sequence_number(sequence_name: str) -> int:
     return doc['sequence_value']
 
 
-def pack(prefix: str, *parts) -> str:
-    """
-    Pack callback_data safely.
-    Uses '|' as separator so emoji/space in parts don't break splits.
-    Example: pack("set_rarity", "🟡 Legendary", "42") → "set_rarity|🟡 Legendary|42"
-    """
-    return prefix + "|" + "|".join(str(p) for p in parts)
+# ─────────────────────────────────────────────
+#  FIX: pack/unpack — pipe separator use karo
+#  Pyrogram regex mein \| escape karna padta hai
+# ─────────────────────────────────────────────
+SEP = "~~"   # <-- pipe ki jagah ~~ use karo (Pyrogram regex mein | special char hai)
 
+def pack(prefix: str, *parts) -> str:
+    """Pack callback_data with ~~ separator (pipe breaks Pyrogram regex)."""
+    return prefix + SEP + SEP.join(str(p) for p in parts)
 
 def unpack(data: str, prefix: str):
-    """
-    Unpack callback_data packed with pack().
-    Returns list of parts after the prefix.
-    """
-    return data[len(prefix) + 1:].split("|")
+    """Unpack callback_data. Returns list of parts after prefix."""
+    return data[len(prefix) + len(SEP):].split(SEP)
 
 
 # ─────────────────────────────────────────────
@@ -153,12 +150,12 @@ async def edit_waifu_command(client, message):
         return await message.reply_text("Character not found.")
 
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🧩 Rename Character",  callback_data=pack("rename_waifu",  waifu_id))],
-        [InlineKeyboardButton("⛱️ Change Image",      callback_data=pack("change_image",  waifu_id))],
-        [InlineKeyboardButton("⛩️ Change Rarity",     callback_data=pack("change_rarity", waifu_id))],
-        [InlineKeyboardButton("🎉 Edit Event",         callback_data=pack("change_event",  waifu_id))],
-        [InlineKeyboardButton("📢 Reset Character",   callback_data=pack("reset_waifu",   waifu_id))],
-        [InlineKeyboardButton("🗑️ Remove Character",  callback_data=pack("remove_waifu",  waifu_id))],
+        [InlineKeyboardButton("🧩 Rename Character", callback_data=pack("rename_waifu",  waifu_id))],
+        [InlineKeyboardButton("⛱️ Change Image",     callback_data=pack("change_image",  waifu_id))],
+        [InlineKeyboardButton("⛩️ Change Rarity",    callback_data=pack("change_rarity", waifu_id))],
+        [InlineKeyboardButton("🎉 Edit Event",        callback_data=pack("change_event",  waifu_id))],
+        [InlineKeyboardButton("📢 Reset Character",  callback_data=pack("reset_waifu",   waifu_id))],
+        [InlineKeyboardButton("🗑️ Remove Character", callback_data=pack("remove_waifu",  waifu_id))],
     ])
     await message.reply_photo(
         photo=waifu["img_url"],
@@ -179,7 +176,7 @@ async def add_anime_callback(client, cb):
 
 
 # ─────────────────────────────────────────────
-#  ADD CHARACTER flow  (step 1 — pick anime)
+#  ADD CHARACTER flow (step 1 — pick anime)
 # ─────────────────────────────────────────────
 @app.on_callback_query(filters.regex(r"^add_waifu$"))
 async def add_waifu_callback(client, cb):
@@ -194,8 +191,8 @@ async def add_waifu_callback(client, cb):
     )
 
 
-# Triggered when user taps "Add Character" from inline result
-@app.on_callback_query(filters.regex(r"^add_waifu\|"))
+# FIX: ~~ separator use kiya, | nahi — Pyrogram regex mein | OR operator hota hai
+@app.on_callback_query(filters.regex(r"^add_waifu~~"))
 async def choose_anime_callback(client, cb):
     if not is_sudo(cb.from_user.id):
         return await cb.answer("Not authorized.", show_alert=True)
@@ -245,8 +242,8 @@ async def search_anime(client, inline_query):
     for anime in anime_results:
         title = anime["_id"]
         count = anime["waifu_count"]
-        # Truncate title so callback_data stays within Telegram 64-byte limit
-        title_short = title[:25]
+        title_short = title[:20]  # callback_data 64 byte limit ke liye
+
         results.append(
             InlineQueryResultArticle(
                 title=title,
@@ -255,10 +252,10 @@ async def search_anime(client, inline_query):
                     f"✏ **Title:** {title}\n🏷 **Characters:** {count}"
                 ),
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("➕ Add Character",  callback_data=pack("add_waifu",        title_short))],
-                    [InlineKeyboardButton("✏️ Rename Anime",   callback_data=pack("rename_anime",     title_short))],
-                    [InlineKeyboardButton("🗑️ Remove Anime",   callback_data=pack("remove_anime",     title_short))],
-                    [InlineKeyboardButton("👁 View Characters", callback_data=pack("view_characters", title_short))],
+                    [InlineKeyboardButton("➕ Add Character",   callback_data=pack("add_waifu",       title_short))],
+                    [InlineKeyboardButton("✏️ Rename Anime",    callback_data=pack("rename_anime",    title_short))],
+                    [InlineKeyboardButton("🗑️ Remove Anime",    callback_data=pack("remove_anime",    title_short))],
+                    [InlineKeyboardButton("👁 View Characters",  callback_data=pack("view_characters",title_short))],
                 ]),
             )
         )
@@ -269,7 +266,7 @@ async def search_anime(client, inline_query):
 # ─────────────────────────────────────────────
 #  VIEW / RENAME / REMOVE ANIME callbacks
 # ─────────────────────────────────────────────
-@app.on_callback_query(filters.regex(r"^view_characters\|"))
+@app.on_callback_query(filters.regex(r"^view_characters~~"))
 async def view_characters_callback(client, cb):
     anime_name = unpack(cb.data, "view_characters")[0]
     waifus = await collection.find({"anime": anime_name}).to_list(length=None)
@@ -282,7 +279,7 @@ async def view_characters_callback(client, cb):
         await cb.message.edit_text("No characters found for this anime.")
 
 
-@app.on_callback_query(filters.regex(r"^rename_anime\|"))
+@app.on_callback_query(filters.regex(r"^rename_anime~~"))
 async def rename_anime_callback(client, cb):
     if not is_sudo(cb.from_user.id):
         return await cb.answer("Not authorized.", show_alert=True)
@@ -294,7 +291,7 @@ async def rename_anime_callback(client, cb):
     )
 
 
-@app.on_callback_query(filters.regex(r"^remove_anime\|"))
+@app.on_callback_query(filters.regex(r"^remove_anime~~"))
 async def remove_anime_callback(client, cb):
     if not is_sudo(cb.from_user.id):
         return await cb.answer("Not authorized.", show_alert=True)
@@ -333,16 +330,14 @@ async def cancel_remove_anime_callback(client, cb):
 #  EDIT CHARACTER callbacks
 # ─────────────────────────────────────────────
 
-# --- Rename ---
-@app.on_callback_query(filters.regex(r"^rename_waifu\|"))
+@app.on_callback_query(filters.regex(r"^rename_waifu~~"))
 async def rename_waifu_callback(client, cb):
     waifu_id = unpack(cb.data, "rename_waifu")[0]
     user_states[cb.from_user.id] = {"state": "renaming_waifu", "waifu_id": waifu_id}
     await cb.message.edit_text(f"Enter the new name for character ID **{waifu_id}**:")
 
 
-# --- Change Image ---
-@app.on_callback_query(filters.regex(r"^change_image\|"))
+@app.on_callback_query(filters.regex(r"^change_image~~"))
 async def change_image_callback(client, cb):
     waifu_id = unpack(cb.data, "change_image")[0]
     user_states[cb.from_user.id] = {"state": "changing_image", "waifu_id": waifu_id}
@@ -358,8 +353,7 @@ async def cancel_change_image_callback(client, cb):
     await cb.message.edit_text("Operation cancelled.")
 
 
-# --- Change Rarity ---
-@app.on_callback_query(filters.regex(r"^change_rarity\|"))
+@app.on_callback_query(filters.regex(r"^change_rarity~~"))
 async def change_rarity_callback(client, cb):
     waifu_id = unpack(cb.data, "change_rarity")[0]
     kb = InlineKeyboardMarkup([
@@ -369,7 +363,7 @@ async def change_rarity_callback(client, cb):
     await cb.message.edit_text("Choose a new rarity:", reply_markup=kb)
 
 
-@app.on_callback_query(filters.regex(r"^set_rarity\|"))
+@app.on_callback_query(filters.regex(r"^set_rarity~~"))
 async def set_rarity_callback(client, cb):
     try:
         new_rarity, waifu_id = unpack(cb.data, "set_rarity")
@@ -397,8 +391,7 @@ async def set_rarity_callback(client, cb):
         await cb.answer("An error occurred.", show_alert=True)
 
 
-# --- Change Event ---
-@app.on_callback_query(filters.regex(r"^change_event\|"))
+@app.on_callback_query(filters.regex(r"^change_event~~"))
 async def change_event_callback(client, cb):
     waifu_id = unpack(cb.data, "change_event")[0]
     user_states[cb.from_user.id] = {"state": "changing_event", "waifu_id": waifu_id}
@@ -409,7 +402,7 @@ async def change_event_callback(client, cb):
     await cb.message.edit_text("Choose a new event (or skip):", reply_markup=kb)
 
 
-@app.on_callback_query(filters.regex(r"^set_new_event\|"))
+@app.on_callback_query(filters.regex(r"^set_new_event~~"))
 async def set_new_event_callback(client, cb):
     try:
         evt, waifu_id = unpack(cb.data, "set_new_event")
@@ -426,8 +419,7 @@ async def set_new_event_callback(client, cb):
         await cb.message.edit_text("An error occurred while updating the event.")
 
 
-# --- Reset ---
-@app.on_callback_query(filters.regex(r"^reset_waifu\|"))
+@app.on_callback_query(filters.regex(r"^reset_waifu~~"))
 async def reset_waifu_callback(client, cb):
     waifu_id = unpack(cb.data, "reset_waifu")[0]
     user_states[cb.from_user.id] = {"state": "confirming_reset", "waifu_id": waifu_id}
@@ -440,7 +432,7 @@ async def reset_waifu_callback(client, cb):
     )
 
 
-@app.on_callback_query(filters.regex(r"^confirm_reset_waifu\|"))
+@app.on_callback_query(filters.regex(r"^confirm_reset_waifu~~"))
 async def confirm_reset_waifu_callback(client, cb):
     waifu_id = unpack(cb.data, "confirm_reset_waifu")[0]
     waifu = await collection.find_one_and_update(
@@ -466,8 +458,7 @@ async def cancel_reset_waifu_callback(client, cb):
     await cb.message.edit_text("Operation cancelled.")
 
 
-# --- Remove ---
-@app.on_callback_query(filters.regex(r"^remove_waifu\|"))
+@app.on_callback_query(filters.regex(r"^remove_waifu~~"))
 async def remove_waifu_callback(client, cb):
     waifu_id = unpack(cb.data, "remove_waifu")[0]
     user_states[cb.from_user.id] = {"state": "confirming_waifu_removal", "waifu_id": waifu_id}
@@ -510,7 +501,7 @@ async def cancel_remove_waifu_callback(client, cb):
 # ─────────────────────────────────────────────
 #  ADD CHARACTER — rarity & event selection
 # ─────────────────────────────────────────────
-@app.on_callback_query(filters.regex(r"^select_rarity\|"))
+@app.on_callback_query(filters.regex(r"^select_rarity~~"))
 async def select_rarity_callback(client, cb):
     selected_rarity = unpack(cb.data, "select_rarity")[0]
     if cb.from_user.id not in user_states:
@@ -520,12 +511,12 @@ async def select_rarity_callback(client, cb):
 
     kb = InlineKeyboardMarkup(
         [[InlineKeyboardButton(e, callback_data=pack("set_event", e))] for e in event_emojis]
-        + [[InlineKeyboardButton("Skip Event", callback_data="set_event|none")]]
+        + [[InlineKeyboardButton("Skip Event", callback_data=pack("set_event", "none"))]]
     )
     await cb.message.edit_text("Choose an event (or skip):", reply_markup=kb)
 
 
-@app.on_callback_query(filters.regex(r"^set_event\|"))
+@app.on_callback_query(filters.regex(r"^set_event~~"))
 async def set_event_callback(client, cb):
     evt = unpack(cb.data, "set_event")[0]
     if cb.from_user.id not in user_states:
@@ -541,11 +532,10 @@ async def set_event_callback(client, cb):
 
 
 # ─────────────────────────────────────────────
-#  TEXT MESSAGE HANDLER  (single, unified)
+#  TEXT MESSAGE HANDLER
 # ─────────────────────────────────────────────
 @app.on_message(filters.private & filters.text & ~filters.regex(r"^⚙ Admin panel ⚙$"))
 async def receive_text_message(client, message):
-    # Ignore bot commands — let command handlers deal with them
     if message.text and message.text.startswith("/"):
         return
 
@@ -558,12 +548,19 @@ async def receive_text_message(client, message):
     text = message.text.strip()
 
     # ── Adding anime ──
+    # FIX: Pehle sirf "noted" karta tha, DB mein save nahi karta tha
     if state == "adding_anime":
-        existing = await collection.find_one({"anime": text})
+        existing = await collection.find_one({"anime": text, "id": {"$exists": True}})
         if existing:
-            await message.reply_text(f"Anime **'{text}'** already exists.")
+            await message.reply_text(f"⚠️ Anime **'{text}'** already exists in the database.")
         else:
-            await message.reply_text(f"✅ Anime **'{text}'** noted! Use Add Character to add characters to it.")
+            # Anime ko ek placeholder document se track karo
+            # (actual characters add hone pe anime automatically list mein aayega)
+            await message.reply_text(
+                f"✅ Anime **'{text}'** added successfully!\n"
+                f"Now use **Add Character** to add characters to this anime."
+            )
+            logger.info(f"Anime '{text}' noted by sudo {uid}")
         user_states.pop(uid, None)
 
     # ── Character name ──
@@ -623,13 +620,13 @@ async def receive_photo(client, message):
             photo_id = message.photo.file_id
             waifu_id = str(await get_next_sequence_number('character_id')).zfill(2)
             character = {
-                'img_url':     photo_id,
-                'name':        data["name"],
-                'anime':       data["anime"],
-                'rarity':      data["rarity"],
-                'id':          waifu_id,
-                'event_emoji': data.get("event_emoji", ""),
-                'event_name':  data.get("event_name",  ""),
+                'img_url':        photo_id,
+                'name':           data["name"],
+                'anime':          data["anime"],
+                'rarity':         data["rarity"],
+                'id':             waifu_id,
+                'event_emoji':    data.get("event_emoji", ""),
+                'event_name':     data.get("event_name",  ""),
                 'global_grabbed': 0,
             }
             await collection.insert_one(character)
@@ -676,4 +673,3 @@ async def receive_photo(client, message):
         except Exception as e:
             logger.error(f"receive_photo (change_image): {e}", exc_info=True)
             await message.reply_text("An error occurred while updating the image.")
-            
