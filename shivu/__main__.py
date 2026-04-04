@@ -43,6 +43,10 @@ warned_users = {}
 user_message_counts = {}
 
 async def message_counter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # BUG FIX 1: None check — agar user/chat missing ho toh crash na ho
+    if not update.effective_chat or not update.effective_user:
+        return
+
     chat_id = str(update.effective_chat.id)
     user_id = update.effective_user.id
     username = update.effective_user.username or "User"
@@ -142,6 +146,7 @@ RARITY_WEIGHTS = {
     "🎐 𝘼𝙎𝙏𝙍𝘼𝙇": 0.1,
     "💞 𝙑𝘼𝙇𝙀𝙉𝙏𝙄𝙉𝙀": 0.1,
 }
+
 async def send_image(update: Update, context: CallbackContext) -> None:
     chat_id = update.effective_chat.id
 
@@ -208,20 +213,47 @@ async def send_image(update: Update, context: CallbackContext) -> None:
 
     rarity_emoji = rarity_to_emoji.get(selected_character.get('rarity'), "❓")
 
-    # Send the character's image and message
-    message = await context.bot.send_photo(
-        chat_id=chat_id,
-        photo=selected_character['img_url'],
-        caption=f"""<b>{character['rarity'][0]} ᴋᴀᴡᴀɪ! ᴀ {character['rarity'][2:]} ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀs ᴀᴘᴘᴇᴀʀᴇᴅ!</b>\n
-<b>ᴀᴅᴅ ʜᴇʀ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ ʙʏ sᴇɴᴅɪɴɢ</b>\n<b>/seize ɴᴀᴍᴇ</b>""",
-        parse_mode='HTML'
+    # BUG FIX 2: selected_character use karo (character variable loop ke baad available nahi hota)
+    # BUG FIX 3: Video black screen fix — .mp4/.mov ke liye send_video use karo
+    # BUG FIX 4: seize → kawaii
+    file_url = selected_character.get('img_url', '')
+    rarity_str = selected_character.get('rarity', '❓')
+    caption = (
+        f"<b>{rarity_str[0]} ᴋᴀᴡᴀɪ! ᴀ {rarity_str[2:]} ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀs ᴀᴘᴘᴇᴀʀᴇᴅ!</b>\n\n"
+        f"<b>ᴀᴅᴅ ʜᴇʀ ᴛᴏ ʏᴏᴜʀ ʜᴀʀᴇᴍ ʙʏ sᴇɴᴅɪɴɢ</b>\n<b>/kawaii ɴᴀᴍᴇ</b>"
     )
 
+    VIDEO_EXTS = (".mp4", ".mov", ".mkv", ".webm", ".avi")
+    is_video = file_url.lower().split("?")[0].endswith(VIDEO_EXTS)
+
+    try:
+        if is_video:
+            message = await context.bot.send_video(
+                chat_id=chat_id,
+                video=file_url,
+                caption=caption,
+                parse_mode='HTML',
+                supports_streaming=True,
+            )
+        else:
+            message = await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=file_url,
+                caption=caption,
+                parse_mode='HTML',
+            )
+    except Exception as e:
+        LOGGER.error(f"send_image failed for {file_url}: {e}")
+        return
+
+    # BUG FIX 5: Private chat mein username nahi hota, isliye alag logic
     # Save the message link for retry/reference
-    if update.effective_chat.type == "private":
-        message_link = f"https://t.me/c/{chat_id}/{message.message_id}"
+    chat = update.effective_chat
+    if chat.username:
+        message_link = f"https://t.me/{chat.username}/{message.message_id}"
     else:
-        message_link = f"https://t.me/{update.effective_chat.username}/{message.message_id}"
+        clean_id = str(chat_id).replace("-100", "")
+        message_link = f"https://t.me/c/{clean_id}/{message.message_id}"
     character_message_links[chat_id] = message_link
 
 # Schedule the "flew away" logic after 2 minutes
@@ -296,6 +328,10 @@ async def placeholder_callback(update: Update, context: CallbackContext):
 
 
 async def guess(update: Update, context: CallbackContext) -> None:
+    # BUG FIX 6: None check
+    if not update.effective_user or not update.message:
+        return
+
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
 
@@ -305,11 +341,13 @@ async def guess(update: Update, context: CallbackContext) -> None:
     # Check if the character has already been guessed
     if chat_id in first_correct_guesses:
         correct_guess_user = first_correct_guesses[chat_id]['user']
-        seized_character = first_correct_guesses[chat_id]['character']
-        time_guessed = first_correct_guesses[chat_id]['time']
-        user_link = f'<a href="tg://user?id={correct_guess_user.id}">{correct_guess_user.first_name}</a>'
+        seized_character   = first_correct_guesses[chat_id]['character']
+        time_guessed       = first_correct_guesses[chat_id]['time']
+        # BUG FIX 7: seized_character ab dict hai, name nikaalo
+        char_name  = seized_character['name'] if isinstance(seized_character, dict) else str(seized_character)
+        user_link  = f'<a href="tg://user?id={correct_guess_user.id}">{escape(correct_guess_user.first_name)}</a>'
         await update.message.reply_text(
-            f'🌟 This character <b>{seized_character}</b> has already been seized by {user_link}!\n'
+            f'🌟 This character <b>{escape(char_name)}</b> has already been kawaiied by {user_link}!\n'
             f'⏱️ Guessed at: <b>{time_guessed}</b>\n'
             f'🍵 Wait for the next character to spawn... 🌌',
             parse_mode='HTML'
@@ -318,6 +356,9 @@ async def guess(update: Update, context: CallbackContext) -> None:
 
     # Retrieve the user's guess
     guess = ' '.join(context.args).lower() if context.args else ''
+
+    if not guess:
+        return
 
     if "()" in guess or "&" in guess.lower():
         await update.message.reply_text(
@@ -348,11 +389,15 @@ async def guess(update: Update, context: CallbackContext) -> None:
 
         guessed_time_str = datetime.fromtimestamp(time_sent).strftime("%Y-%m-%d %H:%M:%S")
 
+        # BUG FIX 8: first_correct_guesses ko dict banao, list nahi
+        # Pehle list tha isliye .append() kaam karta tha lekin
+        # upar 'user' key se access karta tha — type mismatch crash
         if chat_id not in first_correct_guesses:
-            first_correct_guesses[chat_id] = []
-
-        if user_id not in [user.id for user in first_correct_guesses[chat_id]]:
-            first_correct_guesses[chat_id].append(update.effective_user)
+            first_correct_guesses[chat_id] = {
+                'user': update.effective_user,
+                'character': character,
+                'time': guessed_time_str
+            }
 
             # Update user database
             user = await user_collection.find_one({'id': user_id})
@@ -405,15 +450,18 @@ async def guess(update: Update, context: CallbackContext) -> None:
             f'⏱️ Time taken: <b>{minutes}m {seconds}s</b>',
             parse_mode='HTML',
             reply_markup=InlineKeyboardMarkup(keyboard)
-                       )
+        )
+
+        # Character consume ho gaya, hata do
+        del last_characters[chat_id]
+
     else:
         # Extract user input and remove the bot mention and command prefix
-        user_input = update.message.text.strip()  # Full input with command
-        command_parts = user_input.split(" ")  # Split based on spaces
+        user_input = update.message.text.strip()
+        command_parts = user_input.split(" ")
 
-        # Ignore the command and bot mention, take the guess part only
         if len(command_parts) > 1:
-            user_guess = command_parts[-1].strip()  # Last part is user's guess
+            user_guess = command_parts[-1].strip()
         else:
             user_guess = ""
 
@@ -424,14 +472,12 @@ async def guess(update: Update, context: CallbackContext) -> None:
         keyboard = [[InlineKeyboardButton("★ See Character ★", url=message_link)]]
 
         await update.message.reply_text(
-                  f"❌ Wrong guess: '{wrong_letter}'!\n\nPlease try again.",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-)
-        
-# Assuming rarity_map and rarity_active are predefined dictionaries
-# rarity_map = {1: "Common", 2: "Rare", ...}
-# rarity_active = {"Common": False, "Rare": True, ...}
+            f"❌ Wrong guess: '{escape(wrong_letter)}'!\n\nPlease try again.",
+            parse_mode='HTML',
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
 
+        
 AUTHORIZED_USER_ID = 5158013355
 AUTHORIZED_USER_NAME = "my Sensei @Ayushboy1"
 
@@ -483,22 +529,18 @@ async def set_off(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except (IndexError, ValueError):
         await update.message.reply_text('Please provide a valid rarity number.')
 
-# Register handlers
+# Register handlers — BUG FIX 9: duplicate handlers hata diye, sirf ek baar register
+application.add_handler(CommandHandler('kawaii', guess, block=False))
 application.add_handler(CommandHandler('set_on', set_on, block=False))
 application.add_handler(CommandHandler('set_off', set_off, block=False))
+application.add_handler(CallbackQueryHandler(placeholder_callback, pattern=r"^info_"))
+application.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, message_counter, block=False))
 
 # --- BOT START ---
-
 async def start_bot():
     # 1. Pyrogram start 
     await shivuu.start()
     LOGGER.info("Pyrogram Client Started!")
-
-    # 2. Saare Handlers register karo (Jo tune pehle likhe the)
-    application.add_handler(CommandHandler(["seize"], guess, block=False))
-    application.add_handler(MessageHandler(filters.ALL, message_counter, block=False))
-    application.add_handler(CommandHandler('set_on', set_on, block=False))
-    application.add_handler(CommandHandler('set_off', set_off, block=False))
 
     # 3. Telegram-Bot Application start 
     async with application:
